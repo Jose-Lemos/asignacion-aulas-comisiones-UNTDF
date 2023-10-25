@@ -1,44 +1,102 @@
 from django.db import models
 
 class Herramienta(models.Model):
-   # pk = models.AutoField(primary_key=True) # integer: autoincremental
-   # proyector = models.BooleanField()
-  #  polycom = models.BooleanField()
-  #  televisor = models.BooleanField()
-  #  computadoras = models.BooleanField()
-    nombre = models.CharField(max_length=255)
+    nombre = models.CharField(max_length=200, unique=True)
+    #cantidad = models.IntegerField(default=1)
+    #pk = models.AutoField(primary_key=True) # integer: autoincremental
+    # proyector = models.BooleanField()
+    # polycom = models.BooleanField()
+    # televisor = models.BooleanField()
+    # computadoras = models.BooleanField()
+
+    def __str__(self) :
+        return self.nombre
+
     class Meta: # Los índices van a ayudar al momento de recorrer las asignaciones, cuando busquemos las aulas vacías para el periodo actual
         indexes = [
-            models.Index(fields=['pk', 'proyector', 'polycom', 'televisor', 'computadoras']), # compuesto
+            models.Index(fields=['id', 'nombre']), # compuesto
         ]
 
 class Aula(models.Model):
-    pk = models.IntegerField(primary_key=True) # espacio o integer: nuestro, sin consumirlas, sino cargandolas nososotros
-    nombre = models.CharField(max_length=255) # nombre o string: nuestro
+    #pk = models.IntegerField(primary_key=True) # espacio o integer: nuestro, sin consumirlas, sino cargandolas nososotros
+    nombre = models.CharField(max_length=255, unique=True) # nombre o string: nuestro
     cant_cupos = models.IntegerField()
-    aula_compartida = models.ForeignKey('self', on_delete=models.CASCADE, null=True) 
+    aula_compartida = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True) 
+
+    tipos = [("COMUN", "Comun"),
+             ("LABORATORIO", "Laboratorio"),
+             ("MODULO", "Modulo"),
+             ("OFICINA", "Oficina")
+    ]
+    
+    tipo = models.CharField(max_length=20, choices=tipos, default="COMUN")
+    herramientas = models.ManyToManyField(Herramienta, blank=True)#Verificar el modelo, queremos el booleano o el texto de las herramientas
+
+    def __str__(self) :
+        return self.nombre
 
     class Meta:
         indexes = [
-            models.Index(fields=['pk', 'nombre']), # compuesto
+            models.Index(fields=['id', 'nombre']), # compuesto
+        ]
+
+class Carrera(models.Model):
+    # Recordar hacer coincidir la PK de Materia con el id de Elemento en Guaraní
+    #pk = models.IntegerField(primary_key=True) # elemento
+    nombre = models.CharField(max_length=255, unique=True) # nombre
+    codigo = models.CharField(max_length=20, unique=True) # codigo
+
+    tipos = [("LICENCIATURA", "Licenciatura"),
+             ("TECNICATURA", "Tecnicatura"),
+             ("POSTGRADO", "Postgrado"),
+             ("MAESTRIA", "Maestria")
+    ]
+    
+    tipo = models.CharField(max_length=20, choices=tipos, default="LICENCIATURA")
+
+    def __str__(self) :
+        return self.nombre
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['id', 'nombre']), # compuesto
         ]
 
 class Materia(models.Model):
     # Recordar hacer coincidir la PK de Materia con el id de Elemento en Guaraní
-    pk = models.IntegerField(primary_key=True) # elemento
+    #pk = models.IntegerField(primary_key=True) # elemento
     nombre = models.CharField(max_length=255) # nombre
-    codigo = models.CharField(max_length=20) # codigo
-    carrera = models.CharField(max_length=255) # string: simplificamos datos, se puede obtener de sga_elementos_plan.plan_version.nombre
+    codigo = models.CharField(max_length=20, unique=True) # codigo
+    carrera = models.ForeignKey(Carrera, on_delete=models.CASCADE)# string: simplificamos datos, se puede obtener de sga_elementos_plan.plan_version.nombre
+
+    def __str__(self) :
+        return self.nombre
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['id', 'nombre']), # compuesto
+        ]
 
 class Comision(models.Model):
-    pk = models.IntegerField(primary_key=True) # comision
-    nombre = models.CharField(max_length=100) # nombre
+    #pk = models.IntegerField(primary_key=True) # comision
+    nombre = models.CharField(max_length=100, unique=True) # nombre
     cant_insc = models.IntegerField() # consulta sobre sga_insc_cursada. Tiene ser UPDATE cada nuevo consumo que se haga = sga_insc_cursada.comision JOIN (sga_comisiones_bh.asignacion.fecha_desde >= currentDate())
+    materia = models.ForeignKey(Materia, on_delete=models.CASCADE)
     # aula_preferida = models.ForeignKey(Aula, on_delete=models.CASCADE, null=True) # No sé si realmente es necesaria. Las predefinidas las podemos cargar a mano, y luego correr el algoritmo sobre estas. Para esto hay que tener en cuenta que el 
-    comision_compartida = models.ForeignKey('self', on_delete=models.CASCADE, null=True)
+    comision_compartida = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True)
+    preferencias = models.ManyToManyField(Herramienta, blank=True)
+    requiere_aula_exclusiva = models.BooleanField(default=False)
+
+    def __str__(self) :
+        return self.nombre
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['id', 'nombre']), # compuesto
+        ]
 
 class Comision_BH(models.Model): # Misma lógica de consumo que para la cant_insc --> sga_insc_cursada.comision JOIN (sga_comisiones_bh.asignacion.fecha_desde >= currentDate())
-    pk = models.AutoField(primary_key=True)
+    #pk = models.AutoField(primary_key=True)
     comision = models.ForeignKey(Comision, on_delete=models.CASCADE, null=True)
     dia = models.CharField(max_length=9)
     hora_ini = models.TimeField()
@@ -46,13 +104,16 @@ class Comision_BH(models.Model): # Misma lógica de consumo que para la cant_ins
     fecha_ini = models.DateField()
     fecha_fin = models.DateField()
 
+    def __str__(self) :
+        return "{0}-{1}-{2}-{3}".format(self.comision.__str__(), self.dia, self.hora_ini, self.hora_fin)
+
     class Meta:
         indexes = [
-            models.Index(fields=['pk', 'fecha_fin']), # compuesto
+            models.Index(fields=['id', 'fecha_fin']), # compuesto
         ]
 
 class Asignacion(models.Model):
-    pk = models.AutoField(primary_key=True)
+    #pk = models.AutoField(primary_key=True)
     aula =  models.ForeignKey(Aula, on_delete=models.CASCADE, null=True)
     comision_bh =  models.ForeignKey(Comision_BH, on_delete=models.CASCADE, null=True)
 
