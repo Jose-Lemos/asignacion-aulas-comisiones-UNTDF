@@ -1,12 +1,12 @@
 from django.db import models
 
 class Herramienta(models.Model):
-    pk = models.AutoField(primary_key=True) # integer: autoincremental
-    proyector = models.BooleanField()
-    polycom = models.BooleanField()
-    televisor = models.BooleanField()
-    computadoras = models.BooleanField()
-
+   # pk = models.AutoField(primary_key=True) # integer: autoincremental
+   # proyector = models.BooleanField()
+  #  polycom = models.BooleanField()
+  #  televisor = models.BooleanField()
+  #  computadoras = models.BooleanField()
+    nombre = models.CharField(max_length=255)
     class Meta: # Los índices van a ayudar al momento de recorrer las asignaciones, cuando busquemos las aulas vacías para el periodo actual
         indexes = [
             models.Index(fields=['pk', 'proyector', 'polycom', 'televisor', 'computadoras']), # compuesto
