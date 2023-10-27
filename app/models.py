@@ -117,6 +117,17 @@ class Asignacion(models.Model):
     aula =  models.ForeignKey(Aula, on_delete=models.CASCADE, null=True)
     comision_bh =  models.ForeignKey(Comision_BH, on_delete=models.CASCADE, null=True)
 
+    def get_com(self):
+        return self.comision_bh.id
+
+    def __str__(self):
+        return "{0}-{1}-{2}".format(self.id, self.aula, self.comision_bh)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['comision_bh']) # simple
+        ]
+
     class Meta:
         indexes = [
             models.Index(fields=['comision_bh']) # simple
