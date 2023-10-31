@@ -97,7 +97,8 @@ class Comision(models.Model):
 
 class Comision_BH(models.Model): # Misma lógica de consumo que para la cant_insc --> sga_insc_cursada.comision JOIN (sga_comisiones_bh.asignacion.fecha_desde >= currentDate())
     #pk = models.AutoField(primary_key=True)
-    comision = models.ForeignKey(Comision, on_delete=models.CASCADE, null=True)
+    comision = models.ForeignKey(Comision, on_delete=models.CASCADE, null=True, to_field='nombre')
+    #to_field se agrega para mapear por ese atributo
     dia = models.CharField(max_length=9)
     hora_ini = models.TimeField()
     hora_fin = models.TimeField()
