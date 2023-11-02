@@ -67,7 +67,7 @@ class Materia(models.Model):
     #pk = models.IntegerField(primary_key=True) # elemento
     nombre = models.CharField(max_length=255) # nombre
     codigo = models.CharField(max_length=20, unique=True) # codigo
-    carrera = models.ForeignKey(Carrera, on_delete=models.CASCADE)# string: simplificamos datos, se puede obtener de sga_elementos_plan.plan_version.nombre
+    carrera = models.ManyToManyField(Carrera)# string: simplificamos datos, se puede obtener de sga_elementos_plan.plan_version.nombre
 
     def __str__(self) :
         return self.nombre
