@@ -44,7 +44,7 @@ class Carrera(models.Model):
     # Recordar hacer coincidir la PK de Materia con el id de Elemento en Guaraní
     #pk = models.IntegerField(primary_key=True) # elemento
     nombre = models.CharField(max_length=255, unique=True) # nombre
-    codigo = models.CharField(max_length=20, unique=True) # codigo
+    #codigo = models.CharField(max_length=20, unique=True) # codigo
 
     tipos = [("LICENCIATURA", "Licenciatura"),
              ("TECNICATURA", "Tecnicatura"),
@@ -52,7 +52,7 @@ class Carrera(models.Model):
              ("MAESTRIA", "Maestria")
     ]
     
-    tipo = models.CharField(max_length=20, choices=tipos, default="LICENCIATURA")
+    tipo = models.CharField(max_length=20, choices=tipos, default="LICENCIATURA", null=True)
 
     def __str__(self) :
         return self.nombre
@@ -66,7 +66,7 @@ class Materia(models.Model):
     # Recordar hacer coincidir la PK de Materia con el id de Elemento en Guaraní
     #pk = models.IntegerField(primary_key=True) # elemento
     nombre = models.CharField(max_length=255) # nombre
-    codigo = models.CharField(max_length=20, unique=True) # codigo
+    #codigo = models.CharField(max_length=20, unique=True) # codigo --> El SIU Guaraní está mal cargado. Hay nombres de materias con códigos repetidos. Decidimos manejarlos solamente con los ids
     carrera = models.ManyToManyField(Carrera)# string: simplificamos datos, se puede obtener de sga_elementos_plan.plan_version.nombre
 
     def __str__(self) :
