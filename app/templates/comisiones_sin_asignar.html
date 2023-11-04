@@ -74,9 +74,13 @@
                                     Preferencias de herramientas:
                                 </p>
                                 <p class="text-sm text-gray-800 font-semibold ml-[6px] mt-[1px]">
-                                    {% for herramienta in comision.preferencias.all %}
-                                        {{ herramienta.nombre }}{% if not forloop.last %}, {% endif %}
-                                    {% endfor %}
+                                    {% if comision.preferencias.all %}
+                                        {% for herramienta in comision.preferencias.all %}
+                                            {{ herramienta.nombre }}{% if not forloop.last %}, {% endif %}
+                                        {% endfor %}
+                                    {% else %}
+                                        Ninguna
+                                    {% endif %}
                                 </p>
                             </div>
                         </div>
