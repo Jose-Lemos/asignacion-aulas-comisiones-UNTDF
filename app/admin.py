@@ -1,4 +1,4 @@
-from django.contrib import admin
+"""from django.contrib import admin
 from django.db.models import QuerySet
 from app.models import Herramienta, Aula, Carrera, Materia, Comision, Comision_BH, Asignacion
 
@@ -78,7 +78,7 @@ def asignar_aulas(modeladmin, request, queryset):
 
 @admin.register(Comision_BH)
 class Asignacion_Comision_Admin(admin.ModelAdmin):
-    """Asiganción Comision admin."""
+    
 
     list_display = ('pk','dia', 'hora_ini', 'hora_fin', 'fecha_ini', 'fecha_fin', 'comision_id')
     list_display_links = ('pk', 'comision_id')
@@ -86,3 +86,4 @@ class Asignacion_Comision_Admin(admin.ModelAdmin):
 
     # En actions añadimos las funcionalidades extra
     actions = [asignar_aulas]
+"""
