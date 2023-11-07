@@ -21,7 +21,7 @@ class Aula(models.Model):
     #pk = models.IntegerField(primary_key=True) # espacio o integer: nuestro, sin consumirlas, sino cargandolas nososotros
     nombre = models.CharField(max_length=255, unique=True) # nombre o string: nuestro
     cant_cupos = models.IntegerField()
-    aula_compartida = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True) 
+     
 
     tipos = [("COMUN", "Comun"),
              ("LABORATORIO", "Laboratorio"),
