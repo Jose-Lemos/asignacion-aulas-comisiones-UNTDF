@@ -27,7 +27,7 @@
     <select name="comision_bh" id="comision_bh">
       <option value="" disabled selected>Selecciona una comisión</option>
       {% for comision in comisiones %}
-        <option value="{{ comision.pk }}">{{ comision.comision_id }} - {{ comision.dia }} - {{ comision.hora_ini }} a {{ comision.hora_fin }}</option>
+        <option value="{{ comision.pk }}">{{ comision.comision_id}} - {{ comision.dia }} - {{ comision.hora_ini }} a {{ comision.hora_fin }}</option>
       {% endfor %}
     </select>
     <br>

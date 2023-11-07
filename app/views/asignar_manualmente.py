@@ -2,17 +2,13 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
 from ..forms import AsignacionManualForm
 from ..models import *
-from django.db.models import F
-from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django.views.generic import TemplateView
-from django.utils import timezone
+
 
 class AsignarManualmenteView(TemplateView):
     template_name = 'asignacion_manual.html'
-    alert = None
-
-    from django.db.models import F
+  
     
     
     def get_context_data(self, **kwargs):
