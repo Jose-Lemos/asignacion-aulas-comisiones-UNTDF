@@ -114,10 +114,20 @@ class Comision_BH(models.Model): # Misma lógica de consumo que para la cant_ins
         indexes = [
             models.Index(fields=['id', 'fecha_fin']), # compuesto
         ]
+class Espacio_Aula(models.Model):
+    nombre_combinado = models.CharField(max_length=100)
+    aula = models.ForeignKey(Aula, on_delete=models.CASCADE, null=True)
+    
+    def _str_(self): return self.nombre_combinado
+
+    class Meta: 
+        indexes = [
+            models.Index(fields=['nombre_combinado'])
+        ]
 
 class Asignacion(models.Model):
     #pk = models.AutoField(primary_key=True)
-    aula =  models.ForeignKey(Aula, on_delete=models.CASCADE, null=True)
+    aula =  models.ForeignKey(Espacio_Aula, on_delete=models.CASCADE, null=True)
     comision_bh =  models.ForeignKey(Comision_BH, on_delete=models.CASCADE, null=True)
 
     def get_com(self):
@@ -135,3 +145,5 @@ class Asignacion(models.Model):
         indexes = [
             models.Index(fields=['comision_bh']) # simple
         ]
+
+
