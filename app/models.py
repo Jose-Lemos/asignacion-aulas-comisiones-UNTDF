@@ -20,7 +20,7 @@ class Herramienta(models.Model):
 class Aula(models.Model):
     #pk = models.IntegerField(primary_key=True) # espacio o integer: nuestro, sin consumirlas, sino cargandolas nososotros
     nombre = models.CharField(max_length=255, unique=True) # nombre o string: nuestro
-    cant_cupos = models.IntegerField()
+    cant_cupos = models.IntegerField() # Capacidad
      
 
     tipos = [("COMUN", "Comun"),
@@ -114,32 +114,30 @@ class Comision_BH(models.Model): # Misma lógica de consumo que para la cant_ins
         indexes = [
             models.Index(fields=['id', 'fecha_fin']), # compuesto
         ]
+
+
 class Espacio_Aula(models.Model):
     nombre_combinado = models.CharField(max_length=100)
     aula = models.ForeignKey(Aula, on_delete=models.CASCADE, null=True)
     
-    def _str_(self): return self.nombre_combinado
+    def __str__(self): return self.nombre_combinado
 
     class Meta: 
         indexes = [
             models.Index(fields=['nombre_combinado'])
         ]
 
+
 class Asignacion(models.Model):
     #pk = models.AutoField(primary_key=True)
-    aula =  models.ForeignKey(Espacio_Aula, on_delete=models.CASCADE, null=True)
+    espacio_aula =  models.ForeignKey(Espacio_Aula, on_delete=models.CASCADE, null=True)
     comision_bh =  models.ForeignKey(Comision_BH, on_delete=models.CASCADE, null=True)
 
     def get_com(self):
         return self.comision_bh.id
 
     def __str__(self):
-        return "{0}-{1}-{2}".format(self.id, self.aula, self.comision_bh)
-
-    class Meta:
-        indexes = [
-            models.Index(fields=['comision_bh']) # simple
-        ]
+        return "{0}-{1}-{2}".format(self.id, self.espacio_aula, self.comision_bh)
 
     class Meta:
         indexes = [

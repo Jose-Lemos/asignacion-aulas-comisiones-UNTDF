@@ -26,22 +26,22 @@ class AsignarManualmenteView(TemplateView):
 def asignar_aula(request):
     if request.method == 'POST':
         comision_bh_id = request.POST.get('comision_bh')
-        aula_id = request.POST.get('aula')
+        espacio_aula_id = request.POST.get('espacio_aula')
 
-        if comision_bh_id and aula_id:
+        if comision_bh_id and espacio_aula_id:
             comision_bh = Comision_BH.objects.get(pk=comision_bh_id)
-            aula = Aula.objects.get(pk=aula_id)
+            espacio_aula = Aula.objects.get(pk=espacio_aula_id)
 
             # Verifica si el aula está disponible en el día y horario de la comisión
             asignaciones_en_aula = Asignacion.objects.filter(
-                aula=aula,
+                espacio_aula=espacio_aula,
                 comision_bh__dia=comision_bh.dia,
                 comision_bh__hora_ini__lte=comision_bh.hora_ini,
                 comision_bh__hora_fin__gte=comision_bh.hora_fin
             )
 
             if not asignaciones_en_aula:
-                Asignacion.objects.create(aula=aula, comision_bh=comision_bh)
+                Asignacion.objects.create(espacio_aula=espacio_aula, comision_bh=comision_bh)
                 return HttpResponse('Aula asignada con éxito.')
             else:
                 return HttpResponse('El aula no está disponible en ese horario.')

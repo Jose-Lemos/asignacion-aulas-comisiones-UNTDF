@@ -1,5 +1,5 @@
 from django.views.generic import TemplateView
-from app.models import Comision, Asignacion
+from app.models import Comision, Asignacion, Aula
 
 class ComisionesSinAsignarView(TemplateView):
     template_name = 'comisiones_sin_asignar.html'
@@ -13,4 +13,15 @@ class ComisionesSinAsignarView(TemplateView):
         # Filtrar las comisiones que no han sido asignadas
         comisiones_no_asignadas = comisiones.exclude(nombre__in=comisiones_asignadas)
         context['comisiones'] = comisiones_no_asignadas
+
+
+        ###
+        for p in Aula.objects.raw("""
+                                  select *
+                                  from App_Aula
+                                  
+                                  """): print({})
+        ###
+
+
         return context
