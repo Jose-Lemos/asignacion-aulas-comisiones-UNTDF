@@ -119,6 +119,7 @@ class Comision_BH(models.Model): # Misma lógica de consumo que para la cant_ins
 class Espacio_Aula(models.Model):
     nombre_combinado = models.CharField(max_length=100)
     aula = models.ForeignKey(Aula, on_delete=models.CASCADE, null=True)
+    capacidad_total = models.IntegerField(default=0)
     
     def __str__(self): return self.nombre_combinado
 
@@ -132,6 +133,7 @@ class Asignacion(models.Model):
     #pk = models.AutoField(primary_key=True)
     espacio_aula =  models.ForeignKey(Espacio_Aula, on_delete=models.CASCADE, null=True)
     comision_bh =  models.ForeignKey(Comision_BH, on_delete=models.CASCADE, null=True)
+    
 
     def get_com(self):
         return self.comision_bh.id
