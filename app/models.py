@@ -40,6 +40,18 @@ class Aula(models.Model):
             models.Index(fields=['id', 'nombre']), # compuesto
         ]
 
+class Espacio_Aula(models.Model):
+    nombre_combinado = models.CharField(max_length=100)
+    aula = models.ForeignKey(Aula, on_delete=models.CASCADE, null=True)
+    capacidad_total = models.IntegerField(default=0)
+    
+    def __str__(self): return self.nombre_combinado
+
+    class Meta: 
+        indexes = [
+            models.Index(fields=['nombre_combinado'])
+        ]
+
 class Carrera(models.Model):
     # Recordar hacer coincidir la PK de Materia con el id de Elemento en Guaraní
     #pk = models.IntegerField(primary_key=True) # elemento
@@ -53,6 +65,7 @@ class Carrera(models.Model):
     ]
     
     tipo = models.CharField(max_length=20, choices=tipos, default="LICENCIATURA", null=True)
+    aula_exclusiva = models.ForeignKey(Espacio_Aula, on_delete=models.CASCADE, null=True, default=None)
 
     def __str__(self) :
         return self.nombre
@@ -115,25 +128,11 @@ class Comision_BH(models.Model): # Misma lógica de consumo que para la cant_ins
             models.Index(fields=['id', 'fecha_fin']), # compuesto
         ]
 
-
-class Espacio_Aula(models.Model):
-    nombre_combinado = models.CharField(max_length=100)
-    aula = models.ForeignKey(Aula, on_delete=models.CASCADE, null=True)
-    capacidad_total = models.IntegerField(default=0)
-    
-    def __str__(self): return self.nombre_combinado
-
-    class Meta: 
-        indexes = [
-            models.Index(fields=['nombre_combinado'])
-        ]
-
-
 class Asignacion(models.Model):
     #pk = models.AutoField(primary_key=True)
     espacio_aula =  models.ForeignKey(Espacio_Aula, on_delete=models.CASCADE, null=True)
     comision_bh =  models.ForeignKey(Comision_BH, on_delete=models.CASCADE, null=True)
-    
+    # ToDo: agregar un timestamp --> puede ser currentDate() o cbh.fecha_ini
 
     def get_com(self):
         return self.comision_bh.id
@@ -145,5 +144,3 @@ class Asignacion(models.Model):
         indexes = [
             models.Index(fields=['comision_bh']) # simple
         ]
-
-
