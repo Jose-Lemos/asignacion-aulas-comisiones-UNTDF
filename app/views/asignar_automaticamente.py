@@ -78,11 +78,11 @@ class AsignarAutomaticamenteView(TemplateView):
                         espacio_aula=aula_asignada,
                         comision_bh = Comision_BH.objects.create(
                             comision=comision,
-                            dia=dia,  # Esto puede ser un str, asegúrate de que sea un str con el formato correcto
-                            hora_ini=hora_ini,  # Esto también debe ser un str con el formato correcto
-                            hora_fin=hora_fin,  # Igualmente, un str con el formato correcto
-                            fecha_ini=fecha_ini,  # Un str con el formato correcto
-                            fecha_fin=fecha_fin  # También, un str con el formato correcto
+                            dia=dia,  
+                            hora_ini=hora_ini,  
+                            hora_fin=hora_fin,  
+                            fecha_ini=fecha_ini,  
+                            fecha_fin=fecha_fin  
         )
                     )
                     comisiones_asignadas += 1
