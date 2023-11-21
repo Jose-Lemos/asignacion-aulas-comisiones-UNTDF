@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Asignación Automática de Aulas</title>
+</head>
+<body>
+    <h1>Asignación Automática de Aulas a Comisiones</h1>
+
+    <form action="/asignar-automaticamente/" method="post">
+        {% csrf_token %}
+        <input type="submit" value="Ejecutar Asignación Automática">
+    </form>
+
+    <!-- Aquí podrías mostrar el resultado después de realizar la asignación -->
+    {% if comisiones_asignadas is not None and comisiones_no_asignadas is not None %}
+        <h2>Resultados:</h2>
+        <p>Comisiones asignadas: {{ comisiones_asignadas }}</p>
+        <p>Comisiones no asignadas: {{ comisiones_no_asignadas }}</p>
+    {% endif %}
+</body>
+</html>
