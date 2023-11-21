@@ -9,8 +9,9 @@
 
     <form action="/asignar-automaticamente/" method="post">
         {% csrf_token %}
-        <input type="submit" value="Ejecutar Asignación Automática">
+        <button type="submit">Ejecutar Asignación Automática</button>
     </form>
+        
 
     <!-- Aquí podrías mostrar el resultado después de realizar la asignación -->
     {% if comisiones_asignadas is not None and comisiones_no_asignadas is not None %}
