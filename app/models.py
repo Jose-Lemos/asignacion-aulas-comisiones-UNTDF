@@ -65,7 +65,7 @@ class Carrera(models.Model):
     ]
     
     tipo = models.CharField(max_length=20, choices=tipos, default="LICENCIATURA", null=True)
-    aula_exclusiva = models.ForeignKey(Espacio_Aula, on_delete=models.CASCADE, null=True, default=None)
+    # aula_exclusiva = models.ForeignKey(Espacio_Aula, on_delete=models.CASCADE, null=True, default=None)
 
     def __str__(self) :
         return self.nombre
@@ -98,7 +98,9 @@ class Comision(models.Model):
     # aula_preferida = models.ForeignKey(Aula, on_delete=models.CASCADE, null=True) # No sé si realmente es necesaria. Las predefinidas las podemos cargar a mano, y luego correr el algoritmo sobre estas. Para esto hay que tener en cuenta que el 
     comision_compartida = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True)
     preferencias = models.ManyToManyField(Herramienta, blank=True)
-    requiere_aula_exclusiva = models.BooleanField(default=False)
+    # requiere_aula_exclusiva = models.BooleanField(default=False)
+    #
+    aula_exclusiva = models.ForeignKey(Espacio_Aula, on_delete=models.CASCADE, null=True, default=None)
 
     def __str__(self) :
         return self.nombre
