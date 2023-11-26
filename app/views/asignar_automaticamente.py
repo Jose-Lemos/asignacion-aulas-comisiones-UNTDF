@@ -5,7 +5,8 @@ from django.views.generic import TemplateView
 from app.models import *
 from django.db.models import Q
 from django.core.management.base import BaseCommand
- 
+from django.db import OperationalError
+
 
 
 class AsignarAutomaticamenteView(TemplateView):
@@ -61,75 +62,73 @@ class AsignarAutomaticamenteView(TemplateView):
             bhs_sin_asignar = Comision_BH.objects.filter(comision_id=c.nombre)
             
             for bh in bhs_sin_asignar:
-                default_query = f"""
-                    select ea.* 
-                    from app_espacio_aula ea
-                    where ea.nombre_combinado not in (
-                        select eax.nombre_combinado
-                        from app_asignacion ag
-                        inner join app_comision_bh cbh on cbh.id = ag.comision_bh_id 
-                        inner join app_espacio_aula eax on eax.id = ag.espacio_aula_id 
-                        where '{ bh.hora_ini }' between cbh.hora_ini and cbh.hora_fin
-                    )
-                    and ea.nombre_combinado = (
-                        select eax.nombre_combinado
-                        from app_espacio_aula eax
-                        inner join app_aula ax on ax.id = eax.aula_id 
-                        where eax.capacidad_total >= { c.cant_insc }
-                        group by eax.nombre_combinado 
-                        order by eax.capacidad_total 
-                        limit 1 -- Con esto queda expresada la limitación de Aulas que nos va a devolver, 
-                                -- puede que sea un aula combinada, pero estaremos hablando de "1 instancia" en concreto.
-                    ) 
-                """
-                
-                # FALTA TESTEAR
-                if quiere_aula_exclusiva:
-                    aula_libre = Espacio_Aula.objects.raw(f"""
-                        { default_query }
+                try:
+                    default_query = f"""
+                        select ea.* 
+                        from app_espacio_aula ea
+                        where ea.nombre_combinado not in (
+                            select eax.nombre_combinado
+                            from app_asignacion ag
+                            inner join app_comision_bh cbh on cbh.id = ag.comision_bh_id 
+                            inner join app_espacio_aula eax on eax.id = ag.espacio_aula_id 
+                            where '{ bh.hora_ini }' between cbh.hora_ini and cbh.hora_fin
+                        )
                         and ea.nombre_combinado = (
                             select eax.nombre_combinado
                             from app_espacio_aula eax
                             inner join app_aula ax on ax.id = eax.aula_id 
-                            where ax.id = { bh.comision.aula_exclusiva }
-                        )
-                    """)
-                elif quiere_herramienta:
-                    aula_libre = Espacio_Aula.objects.raw(f"""
-                        { default_query }
-                        and ea.nombre_combinado = (
-                            select eax.nombre_combinado
-                            from app_espacio_aula eax
-                            inner join app_aula ax on ax.id = eax.aula_id 
-                            inner join app_aula_herramientas ah on ah.aula_id = ax.id 
-                            inner join app_herramienta h on h.id = ah.herramienta_id 
-                            inner join app_comision_preferencias cp on cp.herramienta_id = h.id 
-                            inner join app_comision c on c.id = cp.comision_id 
-                            where c.nombre = { bh.comision.nombre }
-                            limit 1
-                        )
-                    """)[0:1] # Por si no funciona el limit 1 en la query
-                else:
-                    aula_libre = Espacio_Aula.objects.raw(f"{ default_query }")
-                
-                
-                # ATENTOS: la única manera que tuve de ver los atributos de lo que retorna la query es metiéndola en un FOREACH, aunque haya una sola fila.
-                # for a in aula_libre: print(a.id, a.nombre_combinado)
+                            where eax.capacidad_total >= { c.cant_insc }
+                            group by eax.nombre_combinado 
+                            order by eax.capacidad_total 
+                            limit 1 -- Con esto queda expresada la limitación de Aulas que nos va a devolver, puede que sea un aula combinada, pero estaremos hablando de "1 instancia" en concreto.
+                        ) 
+                    """
+                    
+                    # FALTA TESTEAR
+                    if quiere_aula_exclusiva:
+                        aula_libre = Espacio_Aula.objects.raw(f"""
+                            { default_query }
+                            and ea.nombre_combinado = (
+                                select eax.nombre_combinado
+                                from app_espacio_aula eax
+                                inner join app_aula ax on ax.id = eax.aula_id 
+                                where ax.id = { bh.comision.aula_exclusiva.id }
+                            )
+                        """)
+                    elif quiere_herramienta:
+                        aula_libre = Espacio_Aula.objects.raw(f"""
+                            { default_query }
+                            and ea.nombre_combinado = (
+                                select eax.nombre_combinado
+                                from app_espacio_aula eax
+                                inner join app_aula ax on ax.id = eax.aula_id 
+                                inner join app_aula_herramientas ah on ah.aula_id = ax.id 
+                                inner join app_herramienta h on h.id = ah.herramienta_id 
+                                inner join app_comision_preferencias cp on cp.herramienta_id = h.id 
+                                inner join app_comision c on c.id = cp.comision_id 
+                                where c.nombre = '{ bh.comision.nombre }'
+                                limit 1
+                            )
+                        """)[0:1] # Por si no funciona el limit 1 en la query
+                    else:
+                        aula_libre = Espacio_Aula.objects.raw(f"{ default_query }")
+                    
+                    
+                    # ATENTOS: la única manera que tuve de ver los atributos de lo que retorna la query es metiéndola en un FOREACH, aunque haya una sola fila.
+                    # for a in aula_libre: print(a.id, a.nombre_combinado)
 
-                # Luego de realizar la consulta correspondiente, consultamos si hubo un aula libre
-                if aula_libre: # INSERT ASIGNACION TABLE
-                    # Si es un Aula Combinada, traerá más de un registro. Es necesario bloquear todas las aulas relacionadas a esta combinación para que no sean tenidas en cuenta al momento de consultar por Aulas Libres
-                    for a in aula_libre: 
-                        
-                        # DESCOMENTAR, ES LA ASIGNACIÓN EN SÍ!
-                        # se puede hacer con ORM:
-                        # Asignacion.objects.raw(f"""
-                        #     insert into app_asignacion(comision_bh_id, espacio_aula_id)
-                        #     values ( { bh.id }, { a.id })
-                        # """)
-
-                        print(f"Asignación realizada { c.nombre }; { a.nombre_combinado }")
-                #
-                else:   print(f"No había aula disponible para { c.nombre }")
-
+                    # Luego de realizar la consulta correspondiente, consultamos si hubo un aula libre
+                    if aula_libre: # INSERT ASIGNACION TABLE
+                        # Si es un Aula Combinada, traerá más de un registro. Es necesario bloquear todas las aulas relacionadas a esta combinación para que no sean tenidas en cuenta al momento de consultar por Aulas Libres
+                        for a in aula_libre: 
+                            asignacion = Asignacion(comision_bh_id=bh.id, espacio_aula_id=a.id)
+                            asignacion.save()
+                            print(f"Asignación realizada { c.nombre }; { a.nombre_combinado }")        
+                    #
+                    else:   print(f"No había aula disponible para { c.nombre }") #pass
+                except OperationalError as e:
+                    # Aquí puedes manejar el error de la manera que desees, por ejemplo, imprimir el mensaje de error.
+                    print(f"Error executing query: {e}")
+                    print(aula_libre)
+            
         return render(request, self.template_name)
