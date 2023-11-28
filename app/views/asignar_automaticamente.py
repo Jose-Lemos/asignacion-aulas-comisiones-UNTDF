@@ -63,6 +63,10 @@ class AsignarAutomaticamenteView(TemplateView):
             
             for bh in bhs_sin_asignar:
                 try:
+                    # Variables
+                    minimo_insc = 1 # Cantidad mínima de alumnos inscriptos
+                    
+                    # Query común a cualquier caso
                     default_query = f"""
                         select ea.* 
                         from app_espacio_aula ea
@@ -72,12 +76,13 @@ class AsignarAutomaticamenteView(TemplateView):
                             inner join app_comision_bh cbh on cbh.id = ag.comision_bh_id 
                             inner join app_espacio_aula eax on eax.id = ag.espacio_aula_id 
                             where '{ bh.hora_ini }' between cbh.hora_ini and cbh.hora_fin
+                              and cbh.dia = '{ bh.dia }'
                         )
                         and ea.nombre_combinado = (
                             select eax.nombre_combinado
                             from app_espacio_aula eax
                             inner join app_aula ax on ax.id = eax.aula_id 
-                            where eax.capacidad_total >= { c.cant_insc }
+                            where eax.capacidad_total >= { c.cant_insc } and { c.cant_insc } > { minimo_insc }
                             group by eax.nombre_combinado 
                             order by eax.capacidad_total 
                             limit 1 -- Con esto queda expresada la limitación de Aulas que nos va a devolver, puede que sea un aula combinada, pero estaremos hablando de "1 instancia" en concreto.
@@ -119,13 +124,15 @@ class AsignarAutomaticamenteView(TemplateView):
 
                     # Luego de realizar la consulta correspondiente, consultamos si hubo un aula libre
                     if aula_libre: # INSERT ASIGNACION TABLE
+                    # if len(aula_libre) > 0:
                         # Si es un Aula Combinada, traerá más de un registro. Es necesario bloquear todas las aulas relacionadas a esta combinación para que no sean tenidas en cuenta al momento de consultar por Aulas Libres
                         for a in aula_libre: 
                             asignacion = Asignacion(comision_bh_id=bh.id, espacio_aula_id=a.id)
                             asignacion.save()
                             print(f"Asignación realizada { c.nombre }; { a.nombre_combinado }")        
                     #
-                    else:   print(f"No había aula disponible para { c.nombre }") #pass
+                    else:   
+                        if c.cant_insc > minimo_insc and c.nombre == 'ECO11-COM01-USH': print(f"No había aula disponible para { c.nombre }, cantidad de inscriptos { c.cant_insc }; { quiere_aula_exclusiva }; { quiere_herramienta }; { aula_libre }") #pass
                 except OperationalError as e:
                     # Aquí puedes manejar el error de la manera que desees, por ejemplo, imprimir el mensaje de error.
                     print(f"Error executing query: {e}")
