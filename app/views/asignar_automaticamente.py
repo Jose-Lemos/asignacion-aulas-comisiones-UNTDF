@@ -76,19 +76,22 @@ class AsignarAutomaticamenteView(TemplateView):
                             inner join app_comision_bh cbh on cbh.id = ag.comision_bh_id 
                             inner join app_espacio_aula eax on eax.id = ag.espacio_aula_id 
                             where '{ bh.hora_ini }' between cbh.hora_ini and cbh.hora_fin
+                              and '{ bh.hora_fin }' between cbh.hora_ini and cbh.hora_fin
                               and cbh.dia = '{ bh.dia }'
                         )
-                        and ea.nombre_combinado = (
+                        and ea.nombre_combinado in (
                             select eax.nombre_combinado
                             from app_espacio_aula eax
                             inner join app_aula ax on ax.id = eax.aula_id 
                             where eax.capacidad_total >= { c.cant_insc } and { c.cant_insc } > { minimo_insc }
                             group by eax.nombre_combinado 
-                            order by eax.capacidad_total 
-                            limit 1 -- Con esto queda expresada la limitación de Aulas que nos va a devolver, puede que sea un aula combinada, pero estaremos hablando de "1 instancia" en concreto.
                         ) 
                     """
-                    
+                    end_query = """
+                        order by ea.capacidad_total 
+                        limit 1 -- Con esto queda expresada la limitación de Aulas que nos va a devolver, puede que sea un aula combinada, pero estaremos hablando de "1 instancia" en concreto.
+                    """
+
                     # FALTA TESTEAR
                     if quiere_aula_exclusiva:
                         aula_libre = Espacio_Aula.objects.raw(f"""
@@ -99,6 +102,7 @@ class AsignarAutomaticamenteView(TemplateView):
                                 inner join app_aula ax on ax.id = eax.aula_id 
                                 where ax.id = { bh.comision.aula_exclusiva.id }
                             )
+                            { end_query }
                         """)
                     elif quiere_herramienta:
                         aula_libre = Espacio_Aula.objects.raw(f"""
@@ -114,7 +118,8 @@ class AsignarAutomaticamenteView(TemplateView):
                                 where c.nombre = '{ bh.comision.nombre }'
                                 limit 1
                             )
-                        """)[0:1] # Por si no funciona el limit 1 en la query
+                            { end_query }
+                        """)#[0:1] # Por si no funciona el limit 1 en la query
                     else:
                         aula_libre = Espacio_Aula.objects.raw(f"{ default_query }")
                     
@@ -131,11 +136,11 @@ class AsignarAutomaticamenteView(TemplateView):
                             asignacion.save()
                             print(f"Asignación realizada { c.nombre }; { a.nombre_combinado }")        
                     #
-                    else:   
-                        if c.cant_insc > minimo_insc and c.nombre == 'ECO11-COM01-USH': print(f"No había aula disponible para { c.nombre }, cantidad de inscriptos { c.cant_insc }; { quiere_aula_exclusiva }; { quiere_herramienta }; { aula_libre }") #pass
+                    # else:   pass
+                        if c.cant_insc > minimo_insc: print(f"No había aula disponible para { c.nombre }, cantidad de inscriptos { c.cant_insc }; { quiere_aula_exclusiva }; { quiere_herramienta }; { aula_libre }") #pass
                 except OperationalError as e:
                     # Aquí puedes manejar el error de la manera que desees, por ejemplo, imprimir el mensaje de error.
                     print(f"Error executing query: {e}")
-                    print(aula_libre)
+                    print(f"Comi: {c};\n {aula_libre}")
             
         return render(request, self.template_name)
