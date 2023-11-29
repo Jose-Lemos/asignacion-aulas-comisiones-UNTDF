@@ -64,83 +64,131 @@ class AsignarAutomaticamenteView(TemplateView):
             for bh in bhs_sin_asignar:
                 try:
                     # Variables
-                    minimo_insc = 1 # Cantidad mínima de alumnos inscriptos
-                    
-                    # Query común a cualquier caso
-                    default_query = f"""
-                        select ea.* 
-                        from app_espacio_aula ea
-                        where ea.nombre_combinado not in (
-                            select eax.nombre_combinado
-                            from app_asignacion ag
-                            inner join app_comision_bh cbh on cbh.id = ag.comision_bh_id 
-                            inner join app_espacio_aula eax on eax.id = ag.espacio_aula_id 
-                            where '{ bh.hora_ini }' between cbh.hora_ini and cbh.hora_fin
-                              and '{ bh.hora_fin }' between cbh.hora_ini and cbh.hora_fin
-                              and cbh.dia = '{ bh.dia }'
-                        )
-                        and ea.nombre_combinado in (
-                            select eax.nombre_combinado
-                            from app_espacio_aula eax
-                            inner join app_aula ax on ax.id = eax.aula_id 
-                            where eax.capacidad_total >= { c.cant_insc } and { c.cant_insc } > { minimo_insc }
-                            group by eax.nombre_combinado 
-                        ) 
-                    """
-                    end_query = """
-                        order by ea.capacidad_total 
-                        limit 1 -- Con esto queda expresada la limitación de Aulas que nos va a devolver, puede que sea un aula combinada, pero estaremos hablando de "1 instancia" en concreto.
-                    """
+                    umbral_min = 1 # Cantidad mínima de alumnos inscriptos
+                    excedente_permitido = 10 # Cantidad de alumnos por sobre la capacidad del aula, permitidos
 
-                    # FALTA TESTEAR
+                    # Case
                     if quiere_aula_exclusiva:
-                        aula_libre = Espacio_Aula.objects.raw(f"""
-                            { default_query }
-                            and ea.nombre_combinado = (
-                                select eax.nombre_combinado
-                                from app_espacio_aula eax
-                                inner join app_aula ax on ax.id = eax.aula_id 
-                                where ax.id = { bh.comision.aula_exclusiva.id }
+                        sql_query = f"""
+                            select ea.*
+                            from app_espacio_aula ea
+                            where ea.aula_id in (
+                                select ea.aula_id
+                                from app_espacio_aula ea 
+                                where nombre_combinado in (
+                                    select ea.nombre_combinado 
+                                    from app_espacio_aula ea
+                                    where ea.nombre_combinado not in (
+                                        select eax.nombre_combinado
+                                        from app_asignacion ag
+                                        inner join app_comision_bh cbh on cbh.id = ag.comision_bh_id
+                                        inner join app_espacio_aula eax on eax.id = ag.espacio_aula_id
+                                        where '{ bh.hora_ini }' between cbh.hora_ini and cbh.hora_fin
+                                          and '{ bh.hora_fin }' between cbh.hora_ini and cbh.hora_fin
+                                          and cbh.dia = '{ bh.dia }'
+                                    )
+                                    and ea.nombre_combinado in (
+                                        select eax.nombre_combinado
+                                        from app_espacio_aula eax
+                                        inner join app_aula ax on ax.id = eax.aula_id 
+                                        inner join app_aula_herramientas ah on ah.aula_id = ax.id 
+                                        inner join app_herramienta h on h.id = ah.herramienta_id 
+                                        inner join app_comision_preferencias cp on cp.herramienta_id = h.id 
+                                        inner join app_comision c on c.id = cp.comision_id 
+                                        where c.nombre = '{ bh.comision.nombre }'
+                                          and eax.capacidad_total + { excedente_permitido } >= { c.cant_insc } and { c.cant_insc } > { umbral_min }
+                                        order by eax.capacidad_total 
+                                    )
+                                    order by ea.capacidad_total
+                                    limit 1
+                                )
+                                INTERSECT
+                                select aula_id 
+                                from app_espacio_aula aea
                             )
-                            { end_query }
-                        """)
-                    elif quiere_herramienta:
-                        aula_libre = Espacio_Aula.objects.raw(f"""
-                            { default_query }
-                            and ea.nombre_combinado = (
-                                select eax.nombre_combinado
-                                from app_espacio_aula eax
-                                inner join app_aula ax on ax.id = eax.aula_id 
-                                inner join app_aula_herramientas ah on ah.aula_id = ax.id 
-                                inner join app_herramienta h on h.id = ah.herramienta_id 
-                                inner join app_comision_preferencias cp on cp.herramienta_id = h.id 
-                                inner join app_comision c on c.id = cp.comision_id 
-                                where c.nombre = '{ bh.comision.nombre }'
-                                limit 1
-                            )
-                            { end_query }
-                        """)#[0:1] # Por si no funciona el limit 1 en la query
-                    else:
-                        aula_libre = Espacio_Aula.objects.raw(f"{ default_query }")
-                    
-                    
-                    # ATENTOS: la única manera que tuve de ver los atributos de lo que retorna la query es metiéndola en un FOREACH, aunque haya una sola fila.
-                    # for a in aula_libre: print(a.id, a.nombre_combinado)
-
-                    # Luego de realizar la consulta correspondiente, consultamos si hubo un aula libre
-                    if aula_libre: # INSERT ASIGNACION TABLE
-                    # if len(aula_libre) > 0:
-                        # Si es un Aula Combinada, traerá más de un registro. Es necesario bloquear todas las aulas relacionadas a esta combinación para que no sean tenidas en cuenta al momento de consultar por Aulas Libres
-                        for a in aula_libre: 
-                            asignacion = Asignacion(comision_bh_id=bh.id, espacio_aula_id=a.id)
-                            asignacion.save()
-                            print(f"Asignación realizada { c.nombre }; { a.nombre_combinado }")        
+                            order by id
+                        """
+                        aula_libre = Espacio_Aula.objects.raw(sql_query)
                     #
-                    # else:   pass
-                        if c.cant_insc > minimo_insc: print(f"No había aula disponible para { c.nombre }, cantidad de inscriptos { c.cant_insc }; { quiere_aula_exclusiva }; { quiere_herramienta }; { aula_libre }") #pass
+                    elif quiere_herramienta:
+                        sql_query = f"""
+                            select ea.nombre_combinado 
+                            from app_espacio_aula ea
+                            where ea.nombre_combinado not in (
+                                select eax.nombre_combinado
+                                from app_asignacion ag
+                                inner join app_comision_bh cbh on cbh.id = ag.comision_bh_id
+                                inner join app_espacio_aula eax on eax.id = ag.espacio_aula_id
+                                where '{ bh.hora_ini }' between cbh.hora_ini and cbh.hora_fin
+                                    and '{ bh.hora_fin }' between cbh.hora_ini and cbh.hora_fin
+                                    and cbh.dia = '{ bh.dia }'
+                            )
+                            and ea.nombre_combinado in (
+                                select eax.nombre_combinado
+                                from app_espacio_aula eax
+                                inner join app_aula ax on ax.id = eax.aula_id
+                                where eax.capacidad_total + { excedente_permitido } >= { c.cant_insc } and { c.cant_insc } > { umbral_min }
+                                group by eax.nombre_combinado
+                            )
+                            and ea.nombre_combinado like 
+                                '%'|| 
+                                (select eax.nombre_combinado from app_espacio_aula eax where aula_id = { c.aula_exclusiva } limit 1) 
+                                || '%'
+                        """
+                        aula_libre = Espacio_Aula.objects.raw(sql_query)
+                    else:
+                        sql_query = f"""
+                            select ea.*
+                            from app_espacio_aula ea
+                            where ea.aula_id in (
+                                select ea.aula_id
+                                from app_espacio_aula ea 
+                                where nombre_combinado in (
+                                    select ea.nombre_combinado 
+                                    from app_espacio_aula ea
+                                    where ea.nombre_combinado not in (
+                                        select eax.nombre_combinado
+                                        from app_asignacion ag
+                                        inner join app_comision_bh cbh on cbh.id = ag.comision_bh_id
+                                        inner join app_espacio_aula eax on eax.id = ag.espacio_aula_id
+                                        where '{ bh.hora_ini }' between cbh.hora_ini and cbh.hora_fin
+                                          and '{ bh.hora_fin }' between cbh.hora_ini and cbh.hora_fin
+                                          and cbh.dia = '{ bh.dia }'
+                                    )
+                                    and ea.nombre_combinado in (
+                                        select eax.nombre_combinado
+                                        from app_espacio_aula eax
+                                        inner join app_aula ax on ax.id = eax.aula_id
+                                        where eax.capacidad_total + { excedente_permitido } >= { c.cant_insc } and { c.cant_insc } > { umbral_min }
+                                        group by eax.nombre_combinado
+                                    )
+                                    order by ea.capacidad_total
+                                    limit 1
+                                )
+                                INTERSECT
+                                select aula_id 
+                                from app_espacio_aula aea
+                            )
+                            order by id
+                        """
+                        aula_libre = Espacio_Aula.objects.raw(sql_query)
+                    
+                    # Luego de realizar la consulta correspondiente, consultaremos si hay un aula libre
+                    if aula_libre is not None: # INSERT ASIGNACION TABLE
+                        # Si es un Aula Combinada, traerá más de un registro. Es necesario bloquear todas las aulas relacionadas a esta combinación para que no sean tenidas en cuenta al momento de consultar por Aulas Libres
+                        # print(aula_libre)
+                        for a in aula_libre: 
+                            # print(a)
+                            asignacion = Asignacion(comision_bh_id=bh.id, espacio_aula_id=a.id)
+                            print("Asignacion realizada:", asignacion)
+                            asignacion.save()
+                    #
+                    elif c.cant_insc > umbral_min: print(f"{c} Baja cantidad de inscriptos: { c.cant_insc }; umbral: { umbral_min }")
+                    #
+                    else: print("No se pudo realizar la asignación", bh)
+                # 
                 except OperationalError as e:
-                    # Aquí puedes manejar el error de la manera que desees, por ejemplo, imprimir el mensaje de error.
-                    print(f"Error executing query: {e}")
-                    print(f"Comi: {c};\n {aula_libre}")
+                    print(f"Comision {c}, Error: {e}")
+                    # Faltó ver por qué tira el error, "no such column: None" no identificamos por qué fue
             
         return render(request, self.template_name)
