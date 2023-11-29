@@ -12,8 +12,7 @@ from django.db import OperationalError
 class AsignarAutomaticamenteView(TemplateView):
     template_name = 'asignar_automaticamente.html'
   
-    # ASIGNACIÓN DE AULAS, MODULARIZAR #
-    def get(self, request, *args, **kwargs):
+    def post(self, request, *args, **kwargs):
         
         # Con .raw() da igual qué clase de use del modelo, es indistinto
         comisiones_sin_asignar = Comision.objects.raw("""
