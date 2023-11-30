@@ -1,12 +1,10 @@
-from typing import Any
-from django.db.models.query import QuerySet
 from django.views.generic import ListView
-from app.models import Comision, Asignacion, Aula, Comision_BH
+from app.models import Asignacion, Comision_BH
 from django.db.models import Q
 
 class ComisionesSinAsignarView(ListView):
-    model = Comision
-    template_name = 'comisiones_sin_asignar.html'
+    model = Comision_BH
+    template_name = "comisiones_sin_asignar.html"
     context_object_name = "comisiones"
     paginate_by = 30
 
@@ -14,16 +12,16 @@ class ComisionesSinAsignarView(ListView):
         txt_buscador = self.request.GET.get("buscador")
 
         if txt_buscador:
-            Contenidos = Comision.objects.filter(
-                Q(nombre__icontains = txt_buscador)|
-                Q(materia__nombre__icontains = txt_buscador)
+            ComisionesBH = Comision_BH.objects.filter(
+                Q(comision__nombre__icontains = txt_buscador)|
+                Q(comision__materia__nombre__icontains = txt_buscador)
                 )
         else:
-            comisiones = Comision.objects.all()
-            # Obtener las comisiones asignadas
-            comisiones_asignadas = Asignacion.objects.values_list('comision_bh__comision', flat=True)
-            # Filtrar las comisiones que no han sido asignadas
-            comisiones_no_asignadas = comisiones.exclude(nombre__in=comisiones_asignadas)
-            Contenidos = comisiones_no_asignadas        
-        
-        return Contenidos
+            ComisionesBH = Comision_BH.objects.all().order_by("comision")
+
+            #Obtener las comisiones asignadas
+            comisionesBH_asignadas = Asignacion.objects.values_list('comision_bh', flat=True)
+            comisiones_no_asignadas = ComisionesBH.exclude(id__in=comisionesBH_asignadas)
+            ComisionesBH = comisiones_no_asignadas
+
+        return ComisionesBH
