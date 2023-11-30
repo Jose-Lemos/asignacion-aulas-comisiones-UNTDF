@@ -1,4 +1,3 @@
-
 function getRandomArbitrary(min, max) {
     return Math.random() * (max - min) + min;
 };
@@ -214,3 +213,4 @@ document.addEventListener("DOMContentLoaded", function () {
     get_horarios_comisiones_asignadas();
     ocultarComisionesP();
   });
+

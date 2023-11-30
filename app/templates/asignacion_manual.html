@@ -13,13 +13,21 @@
         text-align: center;
         display: inline-block;
     }
+
+    #asig-aula{
+      border: 1px solid black;
+      padding: 4px;
+      border-radius: 4px;
+      color: cadetblue;
+    }
 </style>
 {% endblock %}
 
 {% block body-content %}
+
 <h1>Asignación Manual de Aulas</h1>
 <div class="h-full sm:ml-72 pt-28 pb-8 flex flex-col items-center justify-center">
-    
+  <p>{{ mensaje }}</p>
     <h1>Asignación Manual de Aulas</h1>
   <form method="post" action="{% url 'asignar-aula' %}">
     {% csrf_token %}
@@ -35,12 +43,13 @@
     <select name="aula" id="aula">
       <option value="" disabled selected>Selecciona un aula</option>
       {% for aula in aulas %}
-        <option value="{{ aula.pk }}">{{ aula.nombre }}</option>
+        <option value="{{ aula.id }}">{{ aula.nombre_combinado }}</option>
       {% endfor %}
     </select>
     <br>
-    <button type="submit">Asignar Aula</button>
+    <button type="submit" id="asig-aula">Asignar Aula</button>
   </form>
 </div>
 {% endblock %}
+
 

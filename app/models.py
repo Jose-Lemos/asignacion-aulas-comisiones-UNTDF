@@ -123,7 +123,7 @@ class Comision_BH(models.Model): # Misma lógica de consumo que para la cant_ins
     fecha_fin = models.DateField()
 
     def __str__(self) :
-        return "{0}-{1}-{2}-{3}".format(self.comision.__str__(), self.dia, self.hora_ini, self.hora_fin)
+        return "{0}#{1}#{2}#{3}".format(self.comision.__str__(), self.dia, self.hora_ini, self.hora_fin)
 
     class Meta:
         indexes = [
