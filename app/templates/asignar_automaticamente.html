@@ -1,15 +1,36 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>Asignación Automática de Aulas</title>
-</head>
-<body>
-    <h1>Asignación Automática de Aulas a Comisiones</h1>
+{% extends 'index.html' %}
 
+{% block title %}<title>Asignacion Automática</title>{% endblock %}
+
+{% block light-style %}
+<style>
+    .hidden {
+        display: none;
+    }
+
+    .pagina {
+        width: 10px;
+        text-align: center;
+        display: inline-block;
+    }
+
+    #ejecutar{
+      border: 1px solid black;
+      padding: 4px;
+      border-radius: 4px;
+      color: cadetblue;
+    }
+</style>
+{% endblock %}
+
+{% block body-content %}
+
+    <div class="p-1 pl-7 sm:ml-64 mb-2">
+    <h1>Asignación Automática de Aulas a Comisiones</h1>
+    <div class="p-1 pl-7 sm:ml-[16.25rem]"> 
     <form action="/asignar-automaticamente/" method="post">
         {% csrf_token %}
-        <button type="submit">Ejecutar Asignación Automática</button>
+        <button type="submit" id="ejecutar">Ejecutar Asignación Automática</button>
     </form>
         
 
@@ -19,5 +40,6 @@
         <p>Comisiones asignadas: {{ comisiones_asignadas }}</p>
         <p>Comisiones no asignadas: {{ comisiones_no_asignadas }}</p>
     {% endif %}
-</body>
-</html>
+</div></div>
+
+{% endblock %}
