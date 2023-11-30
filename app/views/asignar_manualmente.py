@@ -9,7 +9,7 @@ class AsignarManualmenteView(TemplateView):
         context = super().get_context_data(**kwargs)
         comisiones_no_asignadas = Comision_BH.objects.exclude(asignacion__isnull=False)
         context['comisiones'] = comisiones_no_asignadas
-        # Obtener todas las aulas
+        # Obtener aulas libres en la hora que necesite la comision seleccionada 
         aulas = Espacio_Aula.objects.all()
         print(aulas)
        
