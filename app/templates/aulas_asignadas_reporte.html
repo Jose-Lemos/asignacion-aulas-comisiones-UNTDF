@@ -1,0 +1,58 @@
+
+{% extends 'index.html' %}
+
+{% block title %}<title>Reporte de Aulas Asignadas</title>{% endblock %}
+
+{% block light-style %}
+{% load static %}
+<link rel="stylesheet" type="text/css" href="{% static 'styles/styles.css' %}">
+<style>
+    .hidden {
+        display: none;
+    }
+
+    .pagina {
+        width: 10px;
+        text-align: center;
+        display: inline-block;
+    }
+
+  
+</style>
+{% endblock %}
+
+{% block body-content %}
+    <div class="container-title">
+        <h1>Asignaciones del Aula:</h1>
+        <input type="text" value="{{esp_aula}}" readonly style="width: auto;">
+        <a href="{% url 'seleccionar-aula' %}">Seleccionar Aula</a>
+    </div>
+    <div class="grid-container">
+      <div class="header">Hora \ Dia</div>
+      <div class="header">Lunes</div>
+      <div class="header">Martes</div>
+      <div class="header">Miércoles</div>
+      <div class="header">Jueves</div>
+      <div class="header">Viernes</div>
+      <div class="header">Sábado</div>
+      <div class="header">Domingo</div>
+      <!-- Aquí se generará el contenido del cronograma -->
+    </div>
+    
+    <div class="comisionesBH" id="comBH-container">
+        {% for comBH in ComisionesBH %}
+        <p>{{comBH}}</p>
+        <!--<p>{{comBH.hora_ini}}</p>
+        <p>{{comBH.hora_fin}}</p>
+        <p>{{comBH.dia}}</p>
+        <p>{{comBH.comision}}</p>-->
+        {% endfor %}
+        
+        
+    </div>
+    
+{% endblock %}
+
+{% block scripts %}<!-- Contenido -->
+<script src="{% static 'scripts/index.js' %}"></script>
+{% endblock %}

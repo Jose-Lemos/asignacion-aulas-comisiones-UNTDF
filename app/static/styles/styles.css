@@ -1,0 +1,67 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+  }
+  
+  .grid-container {
+    display: grid;
+    grid-template-columns: auto repeat(7, 1fr); /* Columnas automáticas para horas y días */
+    grid-template-rows: 20px repeat(30, 30px); /* Filas para cada hora */
+    margin-left: 255px;
+  }
+  
+  .header {
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    text-align: center;
+  }
+  
+  .task {
+    border: 1px solid #ccc;
+    text-align: center;
+  }
+
+  .task-filled {
+    /*background-color: #a8d0e6; /* Color de fondo para las celdas de la tarea */
+    padding: 0;
+    border: none;
+  }
+
+  .bord-top {
+    border-top: 2px solid black;
+  }
+
+  .bord-bot {
+    border-bottom: 2px solid black;
+  }
+
+  .bord-lados{
+    border-left: 2px solid black;
+    border-right: 2px solid black;
+  }
+
+  .task-filled p{
+    text-justify: auto;
+    font-size: 15px;
+    text-align: center;
+  }
+  
+  .container-title{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .container-title a{
+    color: brown;
+    border: 1px solid black;
+    margin-left: 10px;
+    padding: 4px;
+    border-radius: 4px;
+  }
+
+  .comisionesBH{
+    margin-left: 300px;
+  }
+  
+  /* Estilos adicionales para resaltar ciertas horas, días, etc. */
