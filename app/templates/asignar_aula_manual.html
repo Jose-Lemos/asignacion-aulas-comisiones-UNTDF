@@ -1,0 +1,151 @@
+
+{% extends 'index.html' %}
+
+{% block title %}<title>Asignación Manual de Aula</title>{% endblock %}
+
+{% block light-style %}
+{% load static %}
+<style>
+    .hidden {
+        display: none;
+    }
+
+    .pagina {
+        width: 10px;
+        text-align: center;
+        display: inline-block;
+    }
+
+    .container-title{
+        margin-left: 300px;
+        margin-top: 10px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .container-title input{
+        margin-left: 4px;
+        margin-right: 4px;
+    }
+
+    .container-title a{
+        border: 1px solid black;
+        border-radius: 4px;
+        background-color: brown;
+        color: burlywood;
+        padding: 4px;
+    }
+
+    .container-aulas-disponibles{
+        margin-left: 300px;
+        margin-top: 10px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    #asig-aula{
+        border: 1px solid black;
+        border-radius: 4px;
+        padding: 4px;
+        background-color: cadetblue;
+        color: cornsilk;
+    }
+
+  
+</style>
+{% endblock %}
+
+{% block body-content %}
+<form method="post" action="{% url 'asignar-aula' %}">
+    {% csrf_token %}
+    <div class="container-title">
+        <h1>Asignación Manual de la Comisión:</h1>
+        <input name="comision_bh" type="text" value="{{comisionBH.id}}" readonly style="width: 400px; text-align: center;">
+        <a href="{% url 'seleccionar-comision-BH' %}">Seleccionar ComisionBH</a>
+    </div>
+    <div class="container-aulas-disponibles">
+        
+            <label for="aula">Selecciona un aula:</label>
+            <select name="aula" id="aula">
+            <option value="" disabled selected>Selecciona un aula</option>
+            {% for aula in aulas_disponibles %}
+                <option value="{{ aula.id }}">{{ aula.nombre_combinado }}-Cantidad-{{aula.capacidad_total}}</option>
+            {% endfor %}
+            </select>
+            <button type="submit" id="asig-aula">Asignar Aula</button>
+       
+    </div>
+</form>
+
+    <div class="p-1 pl-7 sm:ml-[16.25rem]">
+        <ol class="w-full divide-y divide-gray-200 dark:divide-gray-700" id="lista-docentes" style="max-width: 85%">
+                <li class="docente">
+
+                    <div class="w-full flex items-center space-x-4 justify-between">
+                        <div class="w-full flex-1 min-w-0 flex flex-row py-2">
+                            <div class="w-1/2 flex flex-col">
+                                <p class="text-sm text-gray-700 truncate flex justify-start">
+                                    Dia:
+                                    <span class="text-sm truncate text-gray-800 font-semibold ml-1">
+                                        {{ comisionBH.dia }}
+                                    </span>
+                                </p>
+                                <p class="text-sm text-gray-700 truncate flex justify-start">
+                                    Hora Inicio:
+                                    <span class="text-sm truncate text-gray-800 font-semibold ml-1">
+                                        {{ comisionBH.hora_ini }}
+                                    </span>
+                                </p>
+                                <p class="text-sm text-gray-700 truncate flex justify-start">
+                                    Hora Fin:
+                                    <span class="text-sm truncate text-gray-800 font-semibold ml-1">
+                                        {{ comisionBH.hora_fin }}
+                                    </span>
+                                </p>
+                                <p class="text-sm text-gray-700 truncate flex justify-start">
+                                    Materia:
+                                    <span class="text-sm truncate text-gray-800 font-semibold ml-1">
+                                        {{ comisionBH.comision.materia.nombre }}
+                                    </span>
+                                </p>
+                                <p class="text-sm font-medium text-gray-700 truncate flex justify-start mt-1">
+                                    Comisión: 
+                                    <span class="text-sm text-gray-800 truncate font-semibold ml-1">
+                                        {{ comisionBH.comision.nombre }}
+                                    </span>
+                                </p>
+                            </div>
+                            <div class="w-1/2 flex">
+                                <p class="text-sm text-gray-700 ml-2">
+                                    Carreras:
+                                </p>
+                                <p class="text-sm text-gray-800 font-semibold ml-[6px] mt-[1px]">
+                                    {% for carrera in comisionBH.comision.materia.carrera.all %}
+                                        {{ carrera.nombre }}{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                </p>
+                            </div>
+                            <div class="w-1/2 flex">
+                                <p class="text-sm text-gray-700 ml-2">
+                                    Preferencias de herramientas:
+                                </p>
+                                <p class="text-sm text-gray-800 font-semibold ml-[6px] mt-[1px]">
+                                    {% if comisionBH.comision.preferencias.all %}
+                                        {% for herramienta in comisionBH.comision.preferencias.all %}
+                                            {{ herramienta.nombre }}{% if not forloop.last %}, {% endif %}
+                                        {% endfor %}
+                                    {% else %}
+                                        Ninguna
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </li>
+        </ol>
+    </div>
+
+    <p style="margin-top: 40px; justify-content: center; align-items: center; text-align: center;">{{ mensaje }}</p>
+{% endblock %}

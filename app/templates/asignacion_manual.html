@@ -1,6 +1,6 @@
 {% extends 'index.html' %}
 
-{% block title %}<title>Asignacion Manual </title>{% endblock %}
+{% block title %}<title>Comisiones sin asignar</title>{% endblock %}
 
 {% block light-style %}
 <style>
@@ -26,30 +26,13 @@
 {% block body-content %}
 
 <h1>Asignación Manual de Aulas</h1>
-<div class="p-1 pl-7 sm:ml-[16.25rem]"> 
-  <p>{{ mensaje }}</p>
-    <h1>Asignación Manual de Aulas</h1>
-  <form method="post" action="{% url 'asignar-aula' %}">
-    {% csrf_token %}
-    <label for="comision_bh">Selecciona una comisión:</label>
-    <select name="comision_bh" id="comision_bh">
-      <option value="" disabled selected>Selecciona una comisión</option>
-      {% for comision in comisiones %}
-        <option value="{{ comision.pk }}">{{ comision.comision_id}} - {{ comision.dia }} - {{ comision.hora_ini }} a {{ comision.hora_fin }}</option>
-      {% endfor %}
-    </select>
-    <br>
-    <label for="aula">Selecciona un aula:</label>
-    <select name="aula" id="aula">
-      <option value="" disabled selected>Selecciona un aula</option>
-      {% for aula in aulas %}
-        <option value="{{ aula.id }}">{{ aula.nombre_combinado }}</option>
-      {% endfor %}
-    </select>
-    <br>
-    <button type="submit" id="asig-aula">Asignar Aula</button>
-  </form>
+<div class="h-full sm:ml-72 pt-28 pb-8 flex flex-col items-center justify-center">
+  <h1>
+    {{ mensaje }}
+  </h1>
+  <a href="{% url 'seleccionar-comision-BH' %}" style="padding: 4px; border: 1px solid black; border-radius: 4px;">Aceptar</a>
 </div>
 {% endblock %}
+
 
 

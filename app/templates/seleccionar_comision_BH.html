@@ -1,0 +1,129 @@
+{% extends 'index.html' %}
+
+{% block title %}<title>Comisiones sin asignar</title>{% endblock %}
+
+{% block light-style %}
+<style>
+    .hidden {
+        display: none;
+    }
+
+    .pagina {
+        width: 10px;
+        text-align: center;
+        display: inline-block;
+    }
+</style>
+{% endblock %}
+
+{% block body-content %}
+<div class="p-1 pl-7 sm:ml-4">
+
+    <div class="p-1 pl-7 sm:ml-64 mb-2">
+        <form method="GET">
+            <label for="default-search" class="mb-2 text-sm font-medium text-gray-900 sr-only dark:text-white">Search</label>
+            <div class="relative">
+                <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden="true"
+                        xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
+                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z" />
+                    </svg>
+                </div>
+                <input type="search" name="buscador" id="filtro"
+                    class="block w-full p-4 pl-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                    style="max-width: 85%; margin-left: 8px;" placeholder="Buscar comisiones" value="{{ request.GET.buscador }}">
+            </div>
+        </form>
+    </div>
+
+    {% if is_paginated %}
+        <div class="mt-2 " style="margin-left: 30px;">
+            {% include 'paginator.html' %}
+        </div>
+    {% endif %}
+
+    <div class="p-1 pl-7 sm:ml-[16.25rem]">
+
+        {% if comisiones %}
+        <ol class="w-full divide-y divide-gray-200 dark:divide-gray-700" id="lista-docentes" style="max-width: 85%">
+            {% for comisionBH in comisiones %}
+                <li class="docente">
+                    <div class="w-full flex items-center space-x-4 justify-between">
+                        <div class="w-full flex-1 min-w-0 flex flex-row py-2">
+                            <div class="w-1/4 flex flex-col">
+                                <p class="text-sm text-gray-700 truncate flex justify-start">
+                                    Dia:
+                                    <span class="text-sm truncate text-gray-800 font-semibold ml-1">
+                                        {{ comisionBH.dia }}
+                                    </span>
+                                </p>
+                                <p class="text-sm text-gray-700 truncate flex justify-start">
+                                    Hora Inicio:
+                                    <span class="text-sm truncate text-gray-800 font-semibold ml-1">
+                                        {{ comisionBH.hora_ini }}
+                                    </span>
+                                </p>
+                                <p class="text-sm text-gray-700 truncate flex justify-start">
+                                    Hora Fin:
+                                    <span class="text-sm truncate text-gray-800 font-semibold ml-1">
+                                        {{ comisionBH.hora_fin }}
+                                    </span>
+                                </p>
+                                <p class="text-sm text-gray-700 truncate flex justify-start">
+                                    Materia:
+                                    <span class="text-sm truncate text-gray-800 font-semibold ml-1">
+                                        {{ comisionBH.comision.materia.nombre }}
+                                    </span>
+                                </p>
+                                <p class="text-sm font-medium text-gray-700 truncate flex justify-start mt-1">
+                                    Comisión: 
+                                    <span class="text-sm text-gray-800 truncate font-semibold ml-1">
+                                        {{ comisionBH.comision.nombre }}
+                                    </span>
+                                </p>
+                            </div>
+                            <div class="w-1/4 flex">
+                                <p class="text-sm text-gray-700 ml-2">
+                                    Carreras:
+                                </p>
+                                <p class="text-sm text-gray-800 font-semibold ml-[6px] mt-[1px]">
+                                    {% for carrera in comisionBH.comision.materia.carrera.all %}
+                                        {{ carrera.nombre }}{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                </p>
+                            </div>
+                            <div class="w-1/4 flex">
+                                <p class="text-sm text-gray-700 ml-2">
+                                    Preferencias de herramientas:
+                                </p>
+                                <p class="text-sm text-gray-800 font-semibold ml-[6px] mt-[1px]">
+                                    {% if comisionBH.comision.preferencias.all %}
+                                        {% for herramienta in comisionBH.comision.preferencias.all %}
+                                            {{ herramienta.nombre }}{% if not forloop.last %}, {% endif %}
+                                        {% endfor %}
+                                    {% else %}
+                                        Ninguna
+                                    {% endif %}
+                                </p>
+                            </div>
+                                
+                            <div class="w-1/2 flex flex-col">
+                                <form action="" method="post">
+                                    {% csrf_token %}
+                                    <a href="{% url 'asignar-manual-aula' comisionBH.id %}" 
+                                    style="margin-left: 8px; border: 1px solid black; border-radius: 4px; padding: 4px;">Asignar AULA Manualmente</a>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </li>
+            {% endfor %}
+            
+        </ol>
+        {% else %}
+        <p class="text-gray-700 mt-4">No hay comisiones para seleccionar</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
