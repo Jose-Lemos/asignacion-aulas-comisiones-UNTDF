@@ -84,6 +84,11 @@ class AsignarManualmenteAula(TemplateView):
         hora_fin = comision_BH.hora_fin
         dia = comision_BH.dia
 
+        comision = Comision.objects.get(nombre= comision_BH.comision_id)
+        materia = comision.materia
+        cant_insc = comision.cant_insc
+        print(comision)
+
         print(dia, hora_ini, hora_fin)
         #asignaciones = Asignacion.objects.filter(espacio_aula_id__ = 1)
         aulas = Espacio_Aula.objects.all()
@@ -92,12 +97,16 @@ class AsignarManualmenteAula(TemplateView):
         asignaciones_en_rango = Asignacion.objects.filter(
             comision_bh_id__dia=dia,
             comision_bh_id__hora_ini__lt=hora_fin,
-            comision_bh_id__hora_fin__gt=hora_ini
+            comision_bh_id__hora_fin__gt=hora_ini,
         )
 
         # Excluir las aulas que están asignadas en ese rango de horario
         aulas_no_asignadas_rango = aulas.exclude(asignacion__in=asignaciones_en_rango)
 
+        #FIiltro por aulas con mayor capacidad
+        aulas_no_asignadas_rango = aulas_no_asignadas_rango.filter(
+            capacidad_total__gt = cant_insc
+        ).order_by("capacidad_total")
         # Aulas disponibles que no están asignadas en el rango de horario
         #print(aulas_no_asignadas_rango)
         context["aulas_disponibles"] = aulas_no_asignadas_rango
