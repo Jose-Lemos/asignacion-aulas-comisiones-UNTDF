@@ -16,7 +16,7 @@ def obtener_aula_disponible():
 
     subquery_1 = Espacio_Aula.objects.filter(
         id__in=Asignacion.objects.filter(
-            comision_bh__hora_ini__lte >=hora_a_verificar,
+            ##comision_bh__hora_ini__lte >=hora_a_verificar,
             #comision_bh__hora_fin__gte=hora_a_verificar
         ).values('espacio_aula')
     )
@@ -69,7 +69,7 @@ def asignar_aulas():
                         comision_bh=comision_bh
                     )
                     print(f"Asignación creada: {asignacion}")
-                except ObjectDoesNotExist:
+                except:
                     print(f"No se pudo crear la asignación para la comisión: {comision}")
         else:
             print(f"No se encontró un aula disponible para la comisión: {comision}")

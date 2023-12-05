@@ -107,8 +107,10 @@ class AsignarManualmenteAula(TemplateView):
         aulas_no_asignadas_rango = aulas_no_asignadas_rango.filter(
             capacidad_total__gt = cant_insc
         ).order_by("capacidad_total")
+
+        
         # Aulas disponibles que no están asignadas en el rango de horario
-        #print(aulas_no_asignadas_rango)
+        print(aulas_no_asignadas_rango)
         context["aulas_disponibles"] = aulas_no_asignadas_rango
 
         #print(context)

@@ -37,3 +37,5 @@ class aulas_asignadas_reporte(TemplateView):
         print(context)
 
         return context
+    
+
