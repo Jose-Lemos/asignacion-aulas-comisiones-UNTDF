@@ -6,6 +6,7 @@ from app.models import *
 from django.db.models import Q
 from django.core.management.base import BaseCommand
 from django.db import OperationalError
+from django.db import models
 
 
 class AsignarAutomaticamenteViewORM(TemplateView):
@@ -16,7 +17,7 @@ class AsignarAutomaticamenteViewORM(TemplateView):
         #### Asignacion de las comisiones con preferencias de Aulas ####
         ComisionesBH = Comision_BH.objects.all().order_by("comision")
 
-        #Obtener las comisiones asignadas
+        #Obtener las comisiones BH asignadas
         comisionesBH_ids_asignadas = Asignacion.objects.values_list('comision_bh', flat=True)
         comisionesBH_no_asignadas = ComisionesBH.exclude(id__in=comisionesBH_ids_asignadas)
         #comisiones_no_asignadas
@@ -27,6 +28,7 @@ class AsignarAutomaticamenteViewORM(TemplateView):
         #print("Comi:")
         #print(comi)
         #asignaciones = Asignacion.objects.all()
+        # Comisiones con Preferencias de Aulas
         comision_con_preferencia_aula = comisiones_sin_asignar.exclude(aula_exclusiva_id__isnull = True)  #Obtenemos las comisiones con prefencias de aulas
         #print(comision_con_preferencia_aula)
 
@@ -45,9 +47,8 @@ class AsignarAutomaticamenteViewORM(TemplateView):
         
 
         print("Total de comisionesBH con Preferencias de Aulas: {0}".format(cant_total_asig))
-
+        aulas = Espacio_Aula.objects.all()  #Obtenemos todos lo espacios aulas
         for comBH_pref in comisiones_BH_pref_aula:
-            aulas = Espacio_Aula.objects.all()  #Obtenemos todos lo espacios aulas
             comision = Comision.objects.get(nombre = comBH_pref.comision_id)
             aula_pref = Espacio_Aula.objects.get(id = comision.aula_exclusiva_id)
             #definimos los atributos para filtrar los rangos de las asignaciones
@@ -76,6 +77,160 @@ class AsignarAutomaticamenteViewORM(TemplateView):
         
         print("{0} Comisiones Asignadas a las Aulas Preferidas!!".format(cant_pref_asig))
         print("{0} Comisiones NO ASIGNADAS a las Aulas Preferidas!!".format(cant_no_asig))
+        #### Fin de Asignaciones de Aulas Preferidas ####
+
+
+
+
+        #### Asignar Comisiones con Requerimientos de Herramientas ####
+        #Obtener las comisiones BH asignadas
+        comisionesBH_ids_asignadas = Asignacion.objects.values_list('comision_bh', flat=True)
+        comisionesBH_no_asignadas = ComisionesBH.exclude(id__in=comisionesBH_ids_asignadas)
+        #comisiones_no_asignadas
+        comisiones_ids_sin_asignar = comisionesBH_no_asignadas.values_list('comision_id', flat=True)
+        comisiones_sin_asignar = Comision.objects.all().filter(nombre__in = comisiones_ids_sin_asignar)
+
+
+        aulas = Espacio_Aula.objects.all()  #Obtenemos todos lo espacios aulas
+        #comisiones_con_herramientas = comisiones_sin_asignar.preferencias.through.
+        #comisiones_ids_con_herramientas = Comision.preferencias.through.objects.all().filter(comision_id__in = comisiones_ids_sin_asignar)
+        comisiones_ids_con_herramientas_rep = list(Comision.preferencias.through.objects.all().values_list('comision_id', flat=True))
+        comisiones_ids_con_herramientas = []
+
+        for ids_com_rep in comisiones_ids_con_herramientas_rep:
+            if (not(ids_com_rep in comisiones_ids_con_herramientas)):
+                comisiones_ids_con_herramientas.append(ids_com_rep)
+
+        #comisiones_con_herramientas = Comision.preferencias.through.objects.all().filter(comision_id__in = comisiones_ids_con_herramientas)
+        comisiones_con_herramientas = comisiones_sin_asignar.filter(id__in = comisiones_ids_con_herramientas)
+        print(comisiones_ids_con_herramientas)
+        print(comisiones_con_herramientas)
+
+
+
+        #Aulas con Herramientas
+        aulas_ids_con_herramientas_rep = list(Aula.herramientas.through.objects.all().values_list('aula_id', flat=True))
+        aulas_ids_con_herramientas = []
+
+        for ids_aulas_rep in aulas_ids_con_herramientas_rep:
+            if (not(ids_aulas_rep in aulas_ids_con_herramientas)):
+                aulas_ids_con_herramientas.append(ids_aulas_rep)    #Se obtiene una lista con todos los ids de las aulas que tienen al menos una herramienta
+
+        #comisiones_con_herramientas = Comision.preferencias.through.objects.all().filter(comision_id__in = comisiones_ids_con_herramientas)
+        aulas_con_herramientas = aulas.filter(id__in = aulas_ids_con_herramientas)    #Objeto de aulas con al menos una herramienta
+        print(aulas_ids_con_herramientas)
+        print(aulas_con_herramientas)
+
+        #aula_herr = {'id_aula':int, 'herramientas':[]}
+        aulas_herrmientas = []    #Vamos a guardar todas las aulas que tienen herramientas con sus herramientas
+
+        for au in aulas_ids_con_herramientas:
+            herramientas = Aula.herramientas.through.objects.filter(aula_id = au).values_list('herramienta_id', flat=True)
+            aula_herr = {'id_aula':au, 'herramientas':herramientas}
+            aulas_herrmientas.append(aula_herr)     
+            #print(herramientas)
+            print(aula_herr)
+
+        print(aulas_herrmientas)
+
+
+
+
+        list_names_coms = [str]
+        for com in comisiones_con_herramientas:
+            list_names_coms.append(com.nombre)
+        comisiones_BH_pref_herr = comisionesBH_no_asignadas.filter(comision_id__in = list_names_coms)    #Obtenemos las BH de las comisiones con preferencias de aulas
+
+
+        #print(comisiones_BH_pref_aula)
+        cant_herr_asig = 0
+        cant_no_herr_asig = 0
+        cant_total_herr_asig = comisiones_BH_pref_herr.count()
+
+        
+
+        print("Total de comisionesBH con Preferencias de Herramientas: {0}".format(cant_total_herr_asig))
+        
+        for comBH_pref_herr in comisiones_BH_pref_herr:
+            comision = comisiones_con_herramientas.get(nombre = comBH_pref_herr.comision_id)
+            aula_pref = Espacio_Aula.objects.get(id = 1)
+            cant_insc = comision.cant_insc
+
+            
+
+            herramientas_comision = Comision.preferencias.through.objects.filter(comision_id=comision.id).values_list('herramienta_id', flat=True)    #-><QuerySet []
+            #herr_aula = Aula.herramientas.through.objects.filter(aula_id=comision.id).values_list('herramienta_id', flat=True)
+            #definimos los atributos para filtrar los rangos de las asignaciones
+            #print("herr_com")
+            print("Herramientas Comision:")
+            print(herramientas_comision)
+
+            ids_aulas_matcheadas = []
+            #MATCH entre aulas con herramientas y comisiones con requerimiento de aulas con herramientas
+            for au_herr in aulas_herrmientas:
+                herramientas = dict(au_herr)['herramientas']   #Obtengo las herrmientas de las aulas con herramientas -> <QuerySet [herramienta_id]>
+                matches = all( elemento in herramientas for elemento in  herramientas_comision ) #Obtengo True si la lista de herranmientas de la comisión pertenece a la lista de herramientas del aula
+                #
+                if matches == True :
+                    #print("posibles aulas")
+                    ids_aulas_matcheadas.append(au_herr["id_aula"])  #agrego el id del aula a la lista de aulas matcheadas
+                #print("herramientas MATCH")
+                #print(herramientas)
+                #print(matches)
+            
+            print("Aulas Matcheadas:")
+            print(ids_aulas_matcheadas)
+
+            if ((len(ids_aulas_matcheadas)) > 0):
+                print("existe al menos un aula match")
+
+                aulas_matcheadas = Aula.objects.filter(id__in=ids_aulas_matcheadas)
+                esp_aulas_matcheadas = Espacio_Aula.objects.filter(aula_id__in = aulas_matcheadas)
+
+                print(esp_aulas_matcheadas)
+                dia = comBH_pref_herr.dia
+                hora_ini = comBH_pref_herr.hora_ini
+                hora_fin = comBH_pref_herr.hora_fin
+                
+
+                asignaciones_en_rango = Asignacion.objects.filter(
+                    comision_bh_id__dia=dia,
+                    comision_bh_id__hora_ini__lt=hora_fin,
+                    comision_bh_id__hora_fin__gt=hora_ini,
+                )
+
+                # Excluir las aulas que están asignadas en ese rango de horario, para obtener las aulas disponibles en el rango requerido
+                aulas_disponibles_BH = esp_aulas_matcheadas.exclude(asignacion__in=asignaciones_en_rango)
+                
+                #FIiltro por aulas con mayor o igual capacidad que la requerida por la comision
+                aulas_disponibles_BH = aulas_disponibles_BH.filter(
+                    capacidad_total__gt = cant_insc
+                ).order_by("capacidad_total")
+
+                #De todas las aulas con la capacidad y herramientas necesarias que no han sido asignadas, vamos a asignar la 1era
+                if aulas_disponibles_BH.count() > 0:
+                    aula_pref_herr1 = aulas_disponibles_BH.first()
+                    print("AUla PREF HERR")
+                    print(aula_pref_herr1)
+                    print("Aula: "+ aula_pref_herr1.nombre_combinado + " DISPONIBLE!!")
+                    print("Comision BH: "+ comBH_pref_herr.__str__())
+                    cant_herr_asig +=1
+                else:
+                    print("No EXISTEN AULAS DISPONIBLES!!")
+                    print("Comision BH: "+ comBH_pref_herr.__str__())
+                    cant_no_herr_asig +=1
+
+            
+            else:
+                print("NO EXISTE ningun aula MATCH")
+
+            print("{0} Comisiones Asignadas a las Aulas con Herramientas Requeridas!!".format(cant_herr_asig))
+            print("{0} Comisiones NO ASIGNADAS a las Aulas con Herramientas Requeridas!!".format(cant_no_herr_asig))
+            
+
+            
+
+
         return self.render_to_response(context)
 
 
