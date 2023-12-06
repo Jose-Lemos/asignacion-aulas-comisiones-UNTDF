@@ -82,6 +82,8 @@ class AsignarAutomaticamenteViewORM(TemplateView):
 
 
 
+
+
         #### Asignar Comisiones con Requerimientos de Herramientas ####
         #Obtener las comisiones BH asignadas
         comisionesBH_ids_asignadas = Asignacion.objects.values_list('comision_bh', flat=True)
@@ -228,7 +230,89 @@ class AsignarAutomaticamenteViewORM(TemplateView):
             print("{0} Comisiones NO ASIGNADAS a las Aulas con Herramientas Requeridas!!".format(cant_no_herr_asig))
             
 
-            
+
+
+        #### FIN DE ASIGNACION DE COMISIONES CON HERRAMIENTAS ####
+
+
+
+
+
+
+
+
+
+
+        ####
+        #Obtener las comisiones BH asignadas
+        comisionesBH_ids_asignadas = Asignacion.objects.values_list('comision_bh', flat=True)
+        comisionesBH_no_asignadas = ComisionesBH.exclude(id__in=comisionesBH_ids_asignadas)
+        #comisiones_no_asignadas
+        comisiones_ids_sin_asignar = comisionesBH_no_asignadas.values_list('comision_id', flat=True)
+        comisiones_sin_asignar = Comision.objects.all().filter(nombre__in = comisiones_ids_sin_asignar)
+
+
+        cant_asig = 0
+        cant_not_asig = 0
+        cantidad_total_asig = comisionesBH_no_asignadas.count()
+
+
+        aulas = Espacio_Aula.objects.all()  #Obtenemos todos lo espacios aulas
+
+        print("Total de comisionesBH para asignar: {0}".format(cantidad_total_asig))
+       
+
+        for comiBH in comisionesBH_no_asignadas:
+            comision = Comision.objects.get(nombre = comiBH.comision_id)
+            cant_insc = comision.cant_insc
+            #aula_pref = Espacio_Aula.objects.get(id = comision.aula_exclusiva_id)
+            #definimos los atributos para filtrar los rangos de las asignaciones
+
+            if (cant_insc > 1):
+                dia = comiBH.dia
+                hora_ini = comiBH.hora_ini
+                hora_fin = comiBH.hora_fin
+                
+
+                asignaciones_en_rango = Asignacion.objects.filter(
+                    comision_bh_id__dia=dia,
+                    comision_bh_id__hora_ini__lt=hora_fin,
+                    comision_bh_id__hora_fin__gt=hora_ini,
+                )
+
+                # Excluir las aulas que están asignadas en ese rango de horario, para obtener las aulas disponibles en el rango requerido
+                aulas_disponibles_BH = aulas.exclude(asignacion__in=asignaciones_en_rango)
+                
+                #FIiltro por aulas con mayor capacidad
+                aulas_disponibles_BH = aulas_disponibles_BH.filter(
+                    capacidad_total__gt = cant_insc
+                ).order_by("capacidad_total")
+
+
+                if aulas_disponibles_BH.count() > 0:
+                    aula_asig = aulas_disponibles_BH.first()
+                    print("Aula: "+ aula_asig.nombre_combinado + " DISPONIBLE!!")
+                    print("Comision BH: "+ comiBH.__str__())
+                    cant_asig +=1
+                else:
+                    print("Aula: no disponible!!!")
+                    print("Comision BH: "+ comiBH.__str__())
+                    cant_not_asig +=1
+            else:
+                print("Comision BH: "+ comiBH.__str__())
+                cant_not_asig +=1
+
+        
+        print("{0} Comisiones Asignadas por Cantidad Inscritos!!".format(cant_asig))
+        print("{0} Comisiones NO ASIGNADAS por cantidad Inscritos!!".format(cant_not_asig))
+
+        #cantidad_total_asignaciones = Asignacion.objects.all().count()
+        #cantidad_total_pendientes = ComisionesBH.count() - cantidad_total_asignaciones
+
+
+        #print("{0} Comisiones Asignadas en TOTAL!!".format(cantidad_total_asignaciones))
+        #print("{0} Comisiones NO ASIGNADAS del TOTAL!!".format(cantidad_total_pendientes))
+
 
 
         return self.render_to_response(context)
