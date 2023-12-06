@@ -32,35 +32,20 @@
         {% csrf_token %}
         <button type="submit" id="ejecutar">Ejecutar Asignación Automática</button>
     </form>
-    
-    <button onclick="llamarFuncionDjango()">Ejecutar función Django</button>
 
     <!-- Resultado después de realizar la asignación Atomatica-->
     {% if comisiones_asignadas is not None and comisiones_no_asignadas is not None %}
         <h2>Resultados:</h2>
-        <p>Comisiones asignadas: {{ comisiones_asignadas }}</p>
-        <p>Comisiones no asignadas: {{ comisiones_no_asignadas }}</p>
+        <p>Total de Comisiones Evaluadas por el Algoritmo: {{ total_algoritmo }}</p>
+        <p>Comisiones asignadas por el Algoritmo: {{ comisiones_asignadas_algoritmo }}</p>
+        <p>Comisiones no asignadas por el Algoritmo: {{ comisiones_no_asignadas_algoritmo }}</p>
+        <p>Total de Comisiones en la Base de Datos: {{ total_comisiones }}</p>
+        <p>Total de Comisiones asignadas: {{ comisiones_asignadas }}</p>
+        <p>Total de Comisiones no asignadas: {{ comisiones_no_asignadas }}</p>
     {% endif %}
 </div></div>
 
 {% endblock %}
 
 {% block scripts %}<!-- Contenido -->
-<script>
-    function llamarFuncionDjango() {
-      var xhr = new XMLHttpRequest();
-      xhr.open('GET', '/ejecutar_funcion/');
-      xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-      xhr.onload = function() {
-        console.log(xhr.status)
-        if (xhr.status === 200) {
-          var respuesta = JSON.parse(xhr.responseText);
-          alert(respuesta.resultado); // Aquí obtienes la respuesta de la función Django
-        } else {
-          alert('Hubo un problema al llamar a la función Django.');
-        }
-      };
-      xhr.send();
-    }
-  </script>
 {% endblock %}
