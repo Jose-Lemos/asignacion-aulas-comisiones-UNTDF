@@ -14,6 +14,8 @@ class AsignarAutomaticamenteViewORM(TemplateView):
   
     def post(self, request, *args, **kwargs):
         context = super().get_context_data(**kwargs)
+        cant_tot_asig_algoritmo = 0
+        cant_tot_no_asig_algoritmo = 0
         #### Asignacion de las comisiones con preferencias de Aulas ####
         ComisionesBH = Comision_BH.objects.all().order_by("comision")
 
@@ -68,11 +70,16 @@ class AsignarAutomaticamenteViewORM(TemplateView):
             if aulas_disponibles_BH.contains(aula_pref):
                 print("Aula: "+ aula_pref.nombre_combinado + " DISPONIBLE!!")
                 print("Comision BH: "+ comBH_pref.__str__())
+                Asignacion.objects.create(espacio_aula=aula_pref, comision_bh=comBH_pref)
+                print("Asignación Realizada con Éxito")
                 cant_pref_asig +=1
+                cant_tot_asig_algoritmo +=1
             else:
                 print("Aula: "+ aula_pref.nombre_combinado + " OCUPADA!!")
                 print("Comision BH: "+ comBH_pref.__str__())
+                print("NO SE PUDO REALIZAR LA ASIGNACIÓN!")
                 cant_no_asig +=1
+                cant_tot_no_asig_algoritmo +=1
 
         
         print("{0} Comisiones Asignadas a las Aulas Preferidas!!".format(cant_pref_asig))
@@ -99,6 +106,7 @@ class AsignarAutomaticamenteViewORM(TemplateView):
         comisiones_ids_con_herramientas_rep = list(Comision.preferencias.through.objects.all().values_list('comision_id', flat=True))
         comisiones_ids_con_herramientas = []
 
+        #Este bucle es para eliminar los ids reetidos de la lista de comisiones con preferencias de herramientas
         for ids_com_rep in comisiones_ids_con_herramientas_rep:
             if (not(ids_com_rep in comisiones_ids_con_herramientas)):
                 comisiones_ids_con_herramientas.append(ids_com_rep)
@@ -114,6 +122,7 @@ class AsignarAutomaticamenteViewORM(TemplateView):
         aulas_ids_con_herramientas_rep = list(Aula.herramientas.through.objects.all().values_list('aula_id', flat=True))
         aulas_ids_con_herramientas = []
 
+        #Bucle para eliminar los ids repetidos de las aulas con herramientas
         for ids_aulas_rep in aulas_ids_con_herramientas_rep:
             if (not(ids_aulas_rep in aulas_ids_con_herramientas)):
                 aulas_ids_con_herramientas.append(ids_aulas_rep)    #Se obtiene una lista con todos los ids de las aulas que tienen al menos una herramienta
@@ -216,15 +225,22 @@ class AsignarAutomaticamenteViewORM(TemplateView):
                     print(aula_pref_herr1)
                     print("Aula: "+ aula_pref_herr1.nombre_combinado + " DISPONIBLE!!")
                     print("Comision BH: "+ comBH_pref_herr.__str__())
+                    Asignacion.objects.create(espacio_aula=aula_pref_herr1, comision_bh=comBH_pref_herr)
+                    print("Asignación Realizada con Éxito")
                     cant_herr_asig +=1
+                    cant_tot_asig_algoritmo +=1
+                    #FALTA AGREGAR LAS ASIGNACIONES Y VERIFICACIONES PARA LAS AULAS EXTENSIBLES!!!
                 else:
                     print("No EXISTEN AULAS DISPONIBLES!!")
                     print("Comision BH: "+ comBH_pref_herr.__str__())
+                    print("NO SE PUDO REALIZAR LA ASIGNACIÓN!!")
                     cant_no_herr_asig +=1
+                    cant_tot_no_asig_algoritmo +=1
 
             
             else:
                 print("NO EXISTE ningun aula MATCH")
+                print("NO SE PUDO REALIZAR LA ASIGNACIÓN!!")
 
             print("{0} Comisiones Asignadas a las Aulas con Herramientas Requeridas!!".format(cant_herr_asig))
             print("{0} Comisiones NO ASIGNADAS a las Aulas con Herramientas Requeridas!!".format(cant_no_herr_asig))
@@ -243,7 +259,7 @@ class AsignarAutomaticamenteViewORM(TemplateView):
 
 
 
-        ####
+        #### ASIGNACIÓN DE COMISIONES POR CANTIDAD DE INSCRITOS ####
         #Obtener las comisiones BH asignadas
         comisionesBH_ids_asignadas = Asignacion.objects.values_list('comision_bh', flat=True)
         comisionesBH_no_asignadas = ComisionesBH.exclude(id__in=comisionesBH_ids_asignadas)
@@ -268,7 +284,7 @@ class AsignarAutomaticamenteViewORM(TemplateView):
             #aula_pref = Espacio_Aula.objects.get(id = comision.aula_exclusiva_id)
             #definimos los atributos para filtrar los rangos de las asignaciones
 
-            if (cant_insc > 1):
+            if (cant_insc > 0):
                 dia = comiBH.dia
                 hora_ini = comiBH.hora_ini
                 hora_fin = comiBH.hora_fin
@@ -293,27 +309,40 @@ class AsignarAutomaticamenteViewORM(TemplateView):
                     aula_asig = aulas_disponibles_BH.first()
                     print("Aula: "+ aula_asig.nombre_combinado + " DISPONIBLE!!")
                     print("Comision BH: "+ comiBH.__str__())
+                    Asignacion.objects.create(espacio_aula=aula_asig, comision_bh=comiBH)
+                    print("Asignación Realizada con Éxito")
                     cant_asig +=1
+                    cant_tot_asig_algoritmo +=1
+                    #FALTA AGREGAR LA VERIFICACIÓN Y ASIGNACIÓN DE LAS AULAS EXTENSIBLES
                 else:
                     print("Aula: no disponible!!!")
                     print("Comision BH: "+ comiBH.__str__())
+                    print("NO SE PUDO REALIZAR LA ASIGNACIÓN!!")
                     cant_not_asig +=1
+                    cant_tot_no_asig_algoritmo +=1
             else:
                 print("Comision BH: "+ comiBH.__str__())
                 cant_not_asig +=1
+                cant_tot_no_asig_algoritmo +=1
 
         
         print("{0} Comisiones Asignadas por Cantidad Inscritos!!".format(cant_asig))
         print("{0} Comisiones NO ASIGNADAS por cantidad Inscritos!!".format(cant_not_asig))
 
-        #cantidad_total_asignaciones = Asignacion.objects.all().count()
-        #cantidad_total_pendientes = ComisionesBH.count() - cantidad_total_asignaciones
+        cantidad_total_asignaciones = Asignacion.objects.all().count()
+        cantidad_total_pendientes = ComisionesBH.count() - cantidad_total_asignaciones
 
 
-        #print("{0} Comisiones Asignadas en TOTAL!!".format(cantidad_total_asignaciones))
-        #print("{0} Comisiones NO ASIGNADAS del TOTAL!!".format(cantidad_total_pendientes))
+        print("{0} Comisiones Asignadas en TOTAL!!".format(cantidad_total_asignaciones))
+        print("{0} Comisiones NO ASIGNADAS del TOTAL!!".format(cantidad_total_pendientes))
 
+        context["comisiones_asignadas_algoritmo"] = cant_tot_asig_algoritmo
+        context["comisiones_no_asignadas_algoritmo"] = cant_tot_no_asig_algoritmo
+        context["total_algoritmo"] = cant_tot_asig_algoritmo + cant_tot_no_asig_algoritmo
 
+        context["comisiones_asignadas"] = cantidad_total_asignaciones
+        context["comisiones_no_asignadas"] = cantidad_total_pendientes
+        context["total_comisiones"] = cantidad_total_asignaciones + cantidad_total_pendientes
 
         return self.render_to_response(context)
 
