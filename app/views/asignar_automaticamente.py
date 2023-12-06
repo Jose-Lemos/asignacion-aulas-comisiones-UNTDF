@@ -213,6 +213,12 @@ class AsignarAutomaticamenteViewORM(TemplateView):
                 # Excluir las aulas que están asignadas en ese rango de horario, para obtener las aulas disponibles en el rango requerido
                 aulas_disponibles_BH = esp_aulas_matcheadas.exclude(asignacion__in=asignaciones_en_rango)
                 
+                #Se agrega la ponderación de hasta 10 inscritos más que la capacidad másxima del AULA
+                if cant_insc <= 10:
+                    cant_insc = 0
+                else:
+                    cant_insc = cant_insc - 10
+
                 #FIiltro por aulas con mayor o igual capacidad que la requerida por la comision
                 aulas_disponibles_BH = aulas_disponibles_BH.filter(
                     capacidad_total__gt = cant_insc
@@ -298,6 +304,12 @@ class AsignarAutomaticamenteViewORM(TemplateView):
 
                 # Excluir las aulas que están asignadas en ese rango de horario, para obtener las aulas disponibles en el rango requerido
                 aulas_disponibles_BH = aulas.exclude(asignacion__in=asignaciones_en_rango)
+
+                #Se agrega la ponderación de hasta 10 inscritos más que la capacidad másxima del AULA
+                if cant_insc <= 10:
+                    cant_insc = 0
+                else:
+                    cant_insc = cant_insc - 10
                 
                 #FIiltro por aulas con mayor capacidad
                 aulas_disponibles_BH = aulas_disponibles_BH.filter(

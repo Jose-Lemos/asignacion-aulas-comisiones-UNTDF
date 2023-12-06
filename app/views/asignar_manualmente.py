@@ -85,7 +85,7 @@ class AsignarManualmenteAula(TemplateView):
         dia = comision_BH.dia
 
         comision = Comision.objects.get(nombre= comision_BH.comision_id)
-        materia = comision.materia
+        #materia = comision.materia
         cant_insc = comision.cant_insc
         print(comision)
 
