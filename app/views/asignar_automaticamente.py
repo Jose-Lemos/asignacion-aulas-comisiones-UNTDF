@@ -16,6 +16,27 @@ class AsignarAutomaticamenteViewORM(TemplateView):
         context = super().get_context_data(**kwargs)
         cant_tot_asig_algoritmo = 0
         cant_tot_no_asig_algoritmo = 0
+
+        # Obtener los espacios_aulas que tienen el campo 'nombre_combinado' repetido
+        aulas_repetidas = Espacio_Aula.objects.values('nombre_combinado').annotate(num_repeticiones=Count('nombre_combinado')).filter(num_repeticiones__gt=1)
+        aul_rep_ids_list = []
+        ids_esp_aula_ext = []
+        for aulas_ext in aulas_repetidas:
+            nombre = aulas_ext['nombre_combinado']
+            num_repeticiones = aulas_ext['num_repeticiones']
+            aulas_con_nombre_repetido = Espacio_Aula.objects.filter(nombre_combinado=nombre)
+            print(f"Nombre: {nombre}, Repeticiones: {num_repeticiones}")
+            ids_aulas_ext = []
+            for esp_au in aulas_con_nombre_repetido:
+                ids_aulas_ext.append(esp_au.aula_id)
+                ids_esp_aula_ext.append(esp_au.id)
+                print(f"ID del objeto: {esp_au.id}")
+            print("IDs Aulas:")
+            #print(ids_aulas_ext)
+            Au_Rep_Ids = {"nombre_combinado": nombre, "repeticiones": num_repeticiones, "ids_aulas":ids_aulas_ext}
+            aul_rep_ids_list.append(Au_Rep_Ids)
+        #print(aul_rep_ids_list)
+        #print(ids_esp_aula_ext)
         #### Asignacion de las comisiones con preferencias de Aulas ####
         ComisionesBH = Comision_BH.objects.all().order_by("comision")
 
@@ -66,6 +87,13 @@ class AsignarAutomaticamenteViewORM(TemplateView):
 
             # Excluir las aulas que están asignadas en ese rango de horario, para obtener las aulas disponibles en el rango requerido
             aulas_disponibles_BH = aulas.exclude(asignacion__in=asignaciones_en_rango)
+
+            if (aula_pref.id in ids_esp_aula_ext):
+                print("La comisión Requiere un aula extensible!!")
+                nombre_combinado = aula_pref.nombre_combinado
+                
+            else: 
+                print("la comisión NO REQUIERE un aula extensible!!")
             
             if aulas_disponibles_BH.contains(aula_pref):
                 print("Aula: "+ aula_pref.nombre_combinado + " DISPONIBLE!!")
@@ -164,7 +192,7 @@ class AsignarAutomaticamenteViewORM(TemplateView):
         
         for comBH_pref_herr in comisiones_BH_pref_herr:
             comision = comisiones_con_herramientas.get(nombre = comBH_pref_herr.comision_id)
-            aula_pref = Espacio_Aula.objects.get(id = 1)
+            #aula_pref = Espacio_Aula.objects.get(id = 1)
             cant_insc = comision.cant_insc
 
             
@@ -224,6 +252,9 @@ class AsignarAutomaticamenteViewORM(TemplateView):
                     capacidad_total__gt = cant_insc
                 ).order_by("capacidad_total")
 
+                
+
+
                 #De todas las aulas con la capacidad y herramientas necesarias que no han sido asignadas, vamos a asignar la 1era
                 if aulas_disponibles_BH.count() > 0:
                     aula_pref_herr1 = aulas_disponibles_BH.first()
@@ -268,7 +299,7 @@ class AsignarAutomaticamenteViewORM(TemplateView):
         #### ASIGNACIÓN DE COMISIONES POR CANTIDAD DE INSCRITOS ####
         #Obtener las comisiones BH asignadas
         comisionesBH_ids_asignadas = Asignacion.objects.values_list('comision_bh', flat=True)
-        comisionesBH_no_asignadas = ComisionesBH.exclude(id__in=comisionesBH_ids_asignadas)
+        comisionesBH_no_asignadas = ComisionesBH.exclude(id__in=comisionesBH_ids_asignadas).order_by("comision_id__cant_insc")
         #comisiones_no_asignadas
         comisiones_ids_sin_asignar = comisionesBH_no_asignadas.values_list('comision_id', flat=True)
         comisiones_sin_asignar = Comision.objects.all().filter(nombre__in = comisiones_ids_sin_asignar)
@@ -305,6 +336,63 @@ class AsignarAutomaticamenteViewORM(TemplateView):
                 # Excluir las aulas que están asignadas en ese rango de horario, para obtener las aulas disponibles en el rango requerido
                 aulas_disponibles_BH = aulas.exclude(asignacion__in=asignaciones_en_rango)
 
+                
+
+                print("Aulas disponibles antes de aplicar el filtro", aulas_disponibles_BH)
+
+                for au_ext in aulas_disponibles_BH:
+                    if (au_ext.id in ids_esp_aula_ext ):
+                        print("De las aulas disponibles para una comision con herramienta, se debe verificar si el aula extensible realmente está disponible")
+                        
+                        #for aril in aul_rep_ids_list:
+                        #Se va a buscar el aula en la lista de aulas extensibles y retornar la posicion del elemento
+                        ind = -1
+                        for index, diccionario in enumerate(aul_rep_ids_list):
+                            if au_ext.nombre_combinado in diccionario.values():
+                                print(f"El valor '{au_ext.nombre_combinado}' se encuentra en el diccionario en la posición {index}")
+                                ind = index
+                                break  # Para detener la búsqueda luego de encontrar la primera coincidencia
+                            else:
+                                print(f"El valor '{au_ext.nombre_combinado}' no se encuentra en ninguno de los diccionarios")
+
+                        if ind > -1:
+                            aux_ver = aul_rep_ids_list[ind]["nombre_combinado"]
+                            list_aulas_ids = aul_rep_ids_list[ind]["ids_aulas"]
+                            print("aula_nombre_combinado:", aux_ver)
+                            print("lista de aulas relacionadas: ", list_aulas_ids)
+
+                            ids_au_ext_nd = []
+                            aulas_matcheadas = []
+                            for id_aula in list_aulas_ids:
+                                aula = Espacio_Aula.objects.get(id = id_aula)
+
+                                #FALTA CORREGIR ESTA PARTE
+                                if (aulas_disponibles_BH.contains(aula)):
+                                    print(f"aula {aula.nombre_combinado} perteneciente a {aux_ver} Disponible en la BH requerida por la comision")
+                                else: 
+                                    print(f"aula {aula.nombre_combinado} NO DISPONIBLE")
+                                    ids_au_ext_nd.append(aula.id)
+                                    
+                                    #MATCH entre aulas con herramientas y comisiones con requerimiento de aulas con herramientas
+                                    for au_ext in aul_rep_ids_list:
+                                        if aula.id in au_ext["ids_aulas"]:
+                                            if not(au_ext in aulas_matcheadas):
+                                                aulas_matcheadas.append(au_ext)
+                            print("aulas matcheadas", aulas_matcheadas)
+
+                            list_names_aulas_matcheadas = []
+                            for aulasM in aulas_matcheadas:
+                                list_names_aulas_matcheadas.append(aulasM["nombre_combinado"])
+
+                            print("nombres de las aulas matcheadas: ", list_names_aulas_matcheadas)
+
+                            aulas_disponibles_BH = aulas_disponibles_BH.exclude(nombre_combinado__in = list_names_aulas_matcheadas)
+                                        
+                            #print("aulas extensibles no disponibles: ", ids_au_ext_nd)
+                            #ids_aulas_ext_matcheadas = []
+                            
+                                #print(ids_aulas_matcheadas)
+
                 #Se agrega la ponderación de hasta 10 inscritos más que la capacidad másxima del AULA
                 if cant_insc <= 10:
                     cant_insc = 0
@@ -316,7 +404,7 @@ class AsignarAutomaticamenteViewORM(TemplateView):
                     capacidad_total__gt = cant_insc
                 ).order_by("capacidad_total")
 
-
+                print("Aulas Disponibles", aulas_disponibles_BH)
                 if aulas_disponibles_BH.count() > 0:
                     aula_asig = aulas_disponibles_BH.first()
                     print("Aula: "+ aula_asig.nombre_combinado + " DISPONIBLE!!")
