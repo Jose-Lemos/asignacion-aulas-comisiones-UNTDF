@@ -156,6 +156,7 @@ class AsignarAutomaticamenteViewORM(TemplateView):
         print("{0} Comisiones NO ASIGNADAS a las Aulas Preferidas!!".format(cant_no_asig))
         #### Fin de Asignaciones de Aulas Preferidas ####
 
+        
 
 
 
@@ -369,19 +370,10 @@ class AsignarAutomaticamenteViewORM(TemplateView):
 
         #### FIN DE ASIGNACION DE COMISIONES CON HERRAMIENTAS ####
 
-
-
-
-
-
-
-
-
-
         #### ASIGNACIÓN DE COMISIONES POR CANTIDAD DE INSCRITOS ####
         #Obtener las comisiones BH asignadas
         comisionesBH_ids_asignadas = Asignacion.objects.values_list('comision_bh', flat=True)
-        comisionesBH_no_asignadas = ComisionesBH.exclude(id__in=comisionesBH_ids_asignadas).order_by("comision_id__cant_insc")
+        comisionesBH_no_asignadas = ComisionesBH.exclude(id__in=comisionesBH_ids_asignadas).order_by("-comision_id__cant_insc")
         #comisiones_no_asignadas
         comisiones_ids_sin_asignar = comisionesBH_no_asignadas.values_list('comision_id', flat=True)
         comisiones_sin_asignar = Comision.objects.all().filter(nombre__in = comisiones_ids_sin_asignar)
@@ -546,6 +538,16 @@ class AsignarAutomaticamenteViewORM(TemplateView):
                 print("Comision BH: "+ comiBH.__str__())
                 cant_not_asig +=1
                 cant_tot_no_asig_algoritmo +=1
+
+
+
+
+
+
+
+
+
+        
 
         
         print("{0} Comisiones Asignadas por Cantidad Inscritos!!".format(cant_asig))
