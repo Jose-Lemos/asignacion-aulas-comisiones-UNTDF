@@ -134,6 +134,7 @@ class Asignacion(models.Model):
     #pk = models.AutoField(primary_key=True)
     espacio_aula =  models.ForeignKey(Espacio_Aula, on_delete=models.CASCADE, null=True)
     comision_bh =  models.ForeignKey(Comision_BH, on_delete=models.CASCADE, null=True)
+    real = models.BooleanField(default=False, null=True, blank=True)
     # ToDo: agregar un timestamp --> puede ser currentDate() o cbh.fecha_ini
 
     def get_com(self):

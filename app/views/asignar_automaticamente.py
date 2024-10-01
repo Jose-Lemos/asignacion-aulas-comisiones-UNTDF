@@ -20,22 +20,23 @@ class AsignarAutomaticamenteViewORM(TemplateView):
         # Obtener los espacios_aulas que tienen el campo 'nombre_combinado' repetido
         aulas_repetidas = Espacio_Aula.objects.values('nombre_combinado').annotate(num_repeticiones=Count('nombre_combinado')).filter(num_repeticiones__gt=1)
         aul_rep_ids_list = []
-        ids_esp_aula_ext = []
+        
         for aulas_ext in aulas_repetidas:
             nombre = aulas_ext['nombre_combinado']
             num_repeticiones = aulas_ext['num_repeticiones']
             aulas_con_nombre_repetido = Espacio_Aula.objects.filter(nombre_combinado=nombre)
             print(f"Nombre: {nombre}, Repeticiones: {num_repeticiones}")
             ids_aulas_ext = []
+            ids_esp_aula_ext = []
             for esp_au in aulas_con_nombre_repetido:
                 ids_aulas_ext.append(esp_au.aula_id)
                 ids_esp_aula_ext.append(esp_au.id)
                 print(f"ID del objeto: {esp_au.id}")
             print("IDs Aulas:")
             #print(ids_aulas_ext)
-            Au_Rep_Ids = {"nombre_combinado": nombre, "repeticiones": num_repeticiones, "ids_aulas":ids_aulas_ext}
+            Au_Rep_Ids = {"id": ids_esp_aula_ext,"nombre_combinado": nombre, "repeticiones": num_repeticiones, "ids_aulas":ids_aulas_ext}
             aul_rep_ids_list.append(Au_Rep_Ids)
-        #print(aul_rep_ids_list)
+        print('############------------------->',aul_rep_ids_list, '\n')
         #print(ids_esp_aula_ext)
         #### Asignacion de las comisiones con preferencias de Aulas ####
         ComisionesBH = Comision_BH.objects.all().order_by("comision")
@@ -98,10 +99,51 @@ class AsignarAutomaticamenteViewORM(TemplateView):
             if aulas_disponibles_BH.contains(aula_pref):
                 print("Aula: "+ aula_pref.nombre_combinado + " DISPONIBLE!!")
                 print("Comision BH: "+ comBH_pref.__str__())
-                Asignacion.objects.create(espacio_aula=aula_pref, comision_bh=comBH_pref)
+                #Asignacion.objects.create(espacio_aula=aula_pref, comision_bh=comBH_pref)
+                Asignacion.objects.create(espacio_aula=aula_pref, comision_bh=comBH_pref, real=True)
+                    ################################### Verificación de las aulas extensibles ########################
+                    ###acá hay que corregir
+                    #Au_Rep_Ids = {"id": ids_esp_aula_ext,"nombre_combinado": nombre, "repeticiones": num_repeticiones, "ids_aulas":ids_aulas_ext}
+                    #aul_rep_ids_list.append(Au_Rep_Ids)
+                asignacion_final = []
+                for aurl in aul_rep_ids_list:
+                        #print("dict:", aurl)
+                        ### verificamos desde el lado de las aulas extensibles con más de una
+                    if (aula_pref.id in aurl["id"]):
+                        for aula_pref.id in aurl["ids_aulas"]:
+                            asignacion_final.append(aurl["id"] + aurl["ids_aulas"])
+                        
+                        
+
+                        ### verificamos desde el lado de las aulas individuales que se pueden hacer extensibles
+                    else: #
+                        if(aula_pref.id in aurl["ids_aulas"]):
+                            asignacion_final.append(aurl["id"])
+                            
+                        
+                            #Asignacion.create
+                        #creamos las asignaciones a todas las aulas para que ya no esté disponible esa BH
+                        #for asig in asignacion_final:
+                         #   aula_asig = Espacio_Aula.objects.get(id = asig)
+                          #  Asignacion.objects.create(espacio_aula=aula_asig, comision_bh=comiBH)
+                    #simplificamos la lista para no tener ids repetidos
+                asig_final_simple = []
+                for asig_f in asignacion_final:
+                    for asf in asig_f:
+                        if not(asf in asig_final_simple):
+                            asig_final_simple.append(asf)
+                    #creamos las asignaciones a todas las aulas para que ya no esté disponible esa BH
+                for asig in asig_final_simple:
+                    aula_pref = Espacio_Aula.objects.get(id = asig)
+                    Asignacion.objects.create(espacio_aula=aula_pref, comision_bh=comBH_pref, real=False)    
+                print("###################_____________LISTAS-ASIGNACION FINAL:", asignacion_final)
+                    #print("asig_final_final", asig_final_final)
+                print("asig_final_simple", asig_final_simple)
                 print("Asignación Realizada con Éxito")
                 cant_pref_asig +=1
                 cant_tot_asig_algoritmo +=1
+                #FALTA AGREGAR LA VERIFICACIÓN Y ASIGNACIÓN DE LAS AULAS EXTENSIBLES
+                ######################################################################### verificacion de las aulas extensibles
             else:
                 print("Aula: "+ aula_pref.nombre_combinado + " OCUPADA!!")
                 print("Comision BH: "+ comBH_pref.__str__())
@@ -220,7 +262,7 @@ class AsignarAutomaticamenteViewORM(TemplateView):
             print("Aulas Matcheadas:")
             print(ids_aulas_matcheadas)
 
-            if ((len(ids_aulas_matcheadas)) > 0):
+            if ((len(ids_aulas_matcheadas)) > 0): 
                 print("existe al menos un aula match")
 
                 aulas_matcheadas = Aula.objects.filter(id__in=ids_aulas_matcheadas)
@@ -262,11 +304,51 @@ class AsignarAutomaticamenteViewORM(TemplateView):
                     print(aula_pref_herr1)
                     print("Aula: "+ aula_pref_herr1.nombre_combinado + " DISPONIBLE!!")
                     print("Comision BH: "+ comBH_pref_herr.__str__())
-                    Asignacion.objects.create(espacio_aula=aula_pref_herr1, comision_bh=comBH_pref_herr)
+                    #Asignacion.objects.create(espacio_aula=aula_pref_herr1, comision_bh=comBH_pref_herr)
+                    Asignacion.objects.create(espacio_aula=aula_pref_herr1, comision_bh=comBH_pref_herr, real=True)
+                    ################################### Verificación de las aulas extensibles ########################
+                    ###acá hay que corregir
+                    #Au_Rep_Ids = {"id": ids_esp_aula_ext,"nombre_combinado": nombre, "repeticiones": num_repeticiones, "ids_aulas":ids_aulas_ext}
+                    #aul_rep_ids_list.append(Au_Rep_Ids)
+                    asignacion_final = []
+                    for aurl in aul_rep_ids_list:
+                        #print("dict:", aurl)
+                        ### verificamos desde el lado de las aulas extensibles con más de una
+                        if (aula_pref_herr1.id in aurl["id"]):
+                            for aula_pref_herr1.id in aurl["ids_aulas"]:
+                                asignacion_final.append(aurl["id"] + aurl["ids_aulas"])
+                        
+                        
+
+                        ### verificamos desde el lado de las aulas individuales que se pueden hacer extensibles
+                        else: #
+                            if(aula_pref_herr1.id in aurl["ids_aulas"]):
+                                asignacion_final.append(aurl["id"])
+                            
+                        
+                            #Asignacion.create
+                        #creamos las asignaciones a todas las aulas para que ya no esté disponible esa BH
+                        #for asig in asignacion_final:
+                         #   aula_asig = Espacio_Aula.objects.get(id = asig)
+                          #  Asignacion.objects.create(espacio_aula=aula_asig, comision_bh=comiBH)
+                    #simplificamos la lista para no tener ids repetidos
+                    asig_final_simple = []
+                    for asig_f in asignacion_final:
+                        for asf in asig_f:
+                            if not(asf in asig_final_simple):
+                                asig_final_simple.append(asf)
+                    #creamos las asignaciones a todas las aulas para que ya no esté disponible esa BH
+                    for asig in asig_final_simple:
+                        aula_pref_herr1 = Espacio_Aula.objects.get(id = asig)
+                        Asignacion.objects.create(espacio_aula=aula_pref_herr1, comision_bh=comBH_pref_herr, real=False)    
+                    print("###################_____________LISTAS-ASIGNACION FINAL:", asignacion_final)
+                    #print("asig_final_final", asig_final_final)
+                    print("asig_final_simple", asig_final_simple)
                     print("Asignación Realizada con Éxito")
                     cant_herr_asig +=1
                     cant_tot_asig_algoritmo +=1
-                    #FALTA AGREGAR LAS ASIGNACIONES Y VERIFICACIONES PARA LAS AULAS EXTENSIBLES!!!
+                    #FALTA AGREGAR LA VERIFICACIÓN Y ASIGNACIÓN DE LAS AULAS EXTENSIBLES
+                    ######################################################################### verificacion de las aulas extensibles
                 else:
                     print("No EXISTEN AULAS DISPONIBLES!!")
                     print("Comision BH: "+ comBH_pref_herr.__str__())
@@ -409,11 +491,51 @@ class AsignarAutomaticamenteViewORM(TemplateView):
                     aula_asig = aulas_disponibles_BH.first()
                     print("Aula: "+ aula_asig.nombre_combinado + " DISPONIBLE!!")
                     print("Comision BH: "+ comiBH.__str__())
-                    Asignacion.objects.create(espacio_aula=aula_asig, comision_bh=comiBH)
+
+                    Asignacion.objects.create(espacio_aula=aula_asig, comision_bh=comiBH, real=True)
+                    ################################### Verificación de las aulas extensibles ########################
+                    ###acá hay que corregir
+                    #Au_Rep_Ids = {"id": ids_esp_aula_ext,"nombre_combinado": nombre, "repeticiones": num_repeticiones, "ids_aulas":ids_aulas_ext}
+                    #aul_rep_ids_list.append(Au_Rep_Ids)
+                    asignacion_final = []
+                    for aurl in aul_rep_ids_list:
+                        #print("dict:", aurl)
+                        ### verificamos desde el lado de las aulas extensibles con más de una
+                        if (aula_asig.id in aurl["id"]):
+                            for aula_asig.id in aurl["ids_aulas"]:
+                                asignacion_final.append(aurl["id"] + aurl["ids_aulas"])
+                        
+                        
+
+                        ### verificamos desde el lado de las aulas individuales que se pueden hacer extensibles
+                        else: #
+                            if(aula_asig.id in aurl["ids_aulas"]):
+                                asignacion_final.append(aurl["id"])
+                            
+                        
+                            #Asignacion.create
+                        #creamos las asignaciones a todas las aulas para que ya no esté disponible esa BH
+                        #for asig in asignacion_final:
+                         #   aula_asig = Espacio_Aula.objects.get(id = asig)
+                          #  Asignacion.objects.create(espacio_aula=aula_asig, comision_bh=comiBH)
+                    #simplificamos la lista para no tener ids repetidos
+                    asig_final_simple = []
+                    for asig_f in asignacion_final:
+                        for asf in asig_f:
+                            if not(asf in asig_final_simple):
+                                asig_final_simple.append(asf)
+                    #creamos las asignaciones a todas las aulas para que ya no esté disponible esa BH
+                    for asig in asig_final_simple:
+                        aula_asig = Espacio_Aula.objects.get(id = asig)
+                        Asignacion.objects.create(espacio_aula=aula_asig, comision_bh=comiBH, real=False)    
+                    print("###################_____________LISTAS-ASIGNACION FINAL:", asignacion_final)
+                    #print("asig_final_final", asig_final_final)
+                    print("asig_final_simple", asig_final_simple)
                     print("Asignación Realizada con Éxito")
                     cant_asig +=1
                     cant_tot_asig_algoritmo +=1
                     #FALTA AGREGAR LA VERIFICACIÓN Y ASIGNACIÓN DE LAS AULAS EXTENSIBLES
+                    ######################################################################### verificacion de las aulas extensibles
                 else:
                     print("Aula: no disponible!!!")
                     print("Comision BH: "+ comiBH.__str__())
