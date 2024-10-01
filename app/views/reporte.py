@@ -21,7 +21,7 @@ class aulas_asignadas_reporte(TemplateView):
         context["aula"] = aula
 
         
-        asignaciones = Asignacion.objects.filter(espacio_aula_id = pk)
+        asignaciones = Asignacion.objects.filter(espacio_aula_id = pk, real=True)
         context["asignaciones"] = asignaciones
 
         asig_list = list(asignaciones)
