@@ -127,6 +127,7 @@ class AsignarAutomaticamenteViewORM(TemplateView):
                          #   aula_asig = Espacio_Aula.objects.get(id = asig)
                           #  Asignacion.objects.create(espacio_aula=aula_asig, comision_bh=comiBH)
                     #simplificamos la lista para no tener ids repetidos
+                print("asignacion final de comisiones PREFERIDAS:", asignacion_final)
                 asig_final_simple = []
                 for asig_f in asignacion_final:
                     for asf in asig_f:
@@ -333,6 +334,7 @@ class AsignarAutomaticamenteViewORM(TemplateView):
                          #   aula_asig = Espacio_Aula.objects.get(id = asig)
                           #  Asignacion.objects.create(espacio_aula=aula_asig, comision_bh=comiBH)
                     #simplificamos la lista para no tener ids repetidos
+                    print("asignacion final de comisiones con Herramientas:", asignacion_final)
                     asig_final_simple = []
                     for asig_f in asignacion_final:
                         for asf in asig_f:
@@ -511,6 +513,7 @@ class AsignarAutomaticamenteViewORM(TemplateView):
                          #   aula_asig = Espacio_Aula.objects.get(id = asig)
                           #  Asignacion.objects.create(espacio_aula=aula_asig, comision_bh=comiBH)
                     #simplificamos la lista para no tener ids repetidos
+                    print("asignacion final de comisiones por cantidad:", asignacion_final)
                     asig_final_simple = []
                     for asig_f in asignacion_final:
                         for asf in asig_f:

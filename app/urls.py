@@ -28,4 +28,5 @@ urlpatterns = [
     path('seleccionar_aula/', select_aula.as_view(), name='seleccionar-aula'),
     path('seleccionar_comision_BH/', selection_comision_BH.as_view(), name='seleccionar-comision-BH'),
     path('asignar_manual_aula/<int:comBH>/', AsignarManualmenteAula.as_view(), name='asignar-manual-aula'),
+    #path('confirmar-asignacion/', ConfirmarAsignacionView.as_view(), name='confirmar-asignacion'),
 ]

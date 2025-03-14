@@ -1,7 +1,38 @@
 from ..models import *
 from django.views.generic import TemplateView, ListView
 from django.db.models import Q
+from django.contrib import messages
+from django.shortcuts import render, redirect
 
+
+# class ConfirmarAsignacionView(TemplateView):
+#     template_name = 'confirmar_asignacion.html'
+
+#     def get_context_data(self, **kwargs):
+#         context = super().get_context_data(**kwargs)
+#         # Obtén la asignación actual que se va a eliminar y la nueva que se propone
+#         asignacion_actual = kwargs.get('asignacion_actual')
+#         nueva_asignacion = kwargs.get('nueva_asignacion')
+
+#         context['asignacion_actual'] = asignacion_actual
+#         context['nueva_asignacion'] = nueva_asignacion
+#         return context
+
+#     def post(self, request, *args, **kwargs):
+#         if 'confirmar' in request.POST:
+#             # Aquí eliminas la asignación previa y realizas la nueva
+#             asignacion_actual = kwargs.get('asignacion_actual')
+#             nueva_asignacion = kwargs.get('nueva_asignacion')
+
+#             # Lógica para eliminar la asignación previa y realizar la nueva
+#             asignacion_actual.delete()
+#             nueva_asignacion.save()
+
+#             messages.success(request, "La nueva asignación se realizó con éxito.")
+#             return redirect('asignar-manual-aula')  # Redirige a una página de éxito
+#         else:
+#             messages.error(request, "La asignación no fue confirmada.")
+#             return redirect('asignar-manual-aula')  # Redirige a una página de cancelación
 
 class AsignarManualmenteView(TemplateView):
     template_name = 'asignacion_manual.html'
@@ -16,6 +47,8 @@ class AsignarManualmenteView(TemplateView):
        
         context['aulas'] = aulas  # Añadir aulas al contexto
         context["mensaje"] = ""
+
+        print("context:", context)
 
 
 
@@ -41,11 +74,26 @@ class AsignarManualmenteView(TemplateView):
                     comision_bh__hora_fin__gte=comision_bh.hora_fin
                 )
 
+
                 if not asignaciones_en_aula:
                     Asignacion.objects.create(espacio_aula=espacio_aula, comision_bh=comision_bh)
                     context["mensaje"] = "Asignación Realizada con Éxito"
+                    context["asig_OK"] = False
+                    #messages.success(request, "La nueva asignación se realizó con éxito.")
+                    #return self.render_to_response(context)  # Redirige a una página de éxito
                 else:
+                    context['asignacion_actual'] = asignaciones_en_aula
+                    context['comision_bh'] = comision_bh
+                    context['espacio_aula'] = espacio_aula
                     context["mensaje"] = "El aula no está disponible en ese horario"
+                    context["asig_OK"] = True
+                    #messages.error(request, "La asignación no fue confirmada.")
+                    #return redirect('confirmar-asignacion')  # Redirige a una página de cancelación
+            print("context:", context)
+            for asig in asignaciones_en_aula:
+                print("asig_com:", asig.comision_bh)
+                print("asig_aula:", asig.espacio_aula)
+                print("dia:", asig.comision_bh.dia)
         
         return self.render_to_response(context)
 
@@ -94,22 +142,23 @@ class AsignarManualmenteAula(TemplateView):
         aulas = Espacio_Aula.objects.all()
 
         # Filtrar las asignaciones que están dentro del rango de horario
-        asignaciones_en_rango = Asignacion.objects.filter(
-            comision_bh_id__dia=dia,
-            comision_bh_id__hora_ini__lt=hora_fin,
-            comision_bh_id__hora_fin__gt=hora_ini,
-        )
+        # asignaciones_en_rango = Asignacion.objects.filter(
+        #     comision_bh_id__dia=dia,
+        #     comision_bh_id__hora_ini__lt=hora_fin,
+        #     comision_bh_id__hora_fin__gt=hora_ini,
+        # )
 
         # Excluir las aulas que están asignadas en ese rango de horario
-        aulas_no_asignadas_rango = aulas.exclude(asignacion__in=asignaciones_en_rango)
+        # aulas_no_asignadas_rango = aulas.exclude(asignacion__in=asignaciones_en_rango)
 
         #FIiltro por aulas con mayor capacidad
-        aulas_no_asignadas_rango = aulas_no_asignadas_rango.filter(
-            capacidad_total__gt = cant_insc
+        aulas_no_asignadas_rango = aulas.filter(
+            capacidad_total__gt = cant_insc -11
         ).order_by("capacidad_total")
 
         
         # Aulas disponibles que no están asignadas en el rango de horario
+        # Aulas con la capacidad suficiente
         print(aulas_no_asignadas_rango)
         context["aulas_disponibles"] = aulas_no_asignadas_rango
 
@@ -140,6 +189,9 @@ class AsignarManualmenteAula(TemplateView):
                     Asignacion.objects.create(espacio_aula=espacio_aula, comision_bh=comision_bh)
                     context["mensaje"] = "Asignación Realizada con Éxito"
                 else:
+                    context['asignacion_actual'] = asignaciones_en_aula
+                    context['comision_bh'] = comision_bh
+                    context['espacio_aula'] = espacio_aula
                     context["mensaje"] = "El aula no está disponible en ese horario"
         
         return self.render_to_response(context)

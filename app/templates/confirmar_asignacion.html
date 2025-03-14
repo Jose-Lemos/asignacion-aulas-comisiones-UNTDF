@@ -27,30 +27,11 @@
 
 <h1>Asignación Manual de Aulas</h1>
 <div class="h-full sm:ml-72 pt-28 pb-8 flex flex-col items-center justify-center">
-  <form method="post">
-    {% csrf_token %}
-    {% if asig_OK  %}
-      <p>La comisión "{{ comision_bh.comision.nombre }}" será asignada al aula "{{ espacio_aula.aula }}".</p>
-      <p>Horario: {{comision_bh.dia}} - {{comision_bh.hora_ini}} - {{comision_bh.hora_fin}}
-      </p>
-      <p>Esta acción eliminará la asignación actual en el aula "{{ espacio_aula.aula }}".</p>
-      {% for asig in asignacion_actual %}
-      <p>{{asig.comision_bh}} - {{asig.esp_aula}} </p>
-      {% endfor %}
-      <p>¿Está seguro de que desea continuar?</p>
-      <button type="submit" name="confirmar" value="true">Confirmar</button>
-      <button type="submit" name="confirmar" value="false">Cancelar</button>
-    {% else %}
       <h1>
         {{ mensaje }}
       </h1>
       <a href="{% url 'seleccionar-comision-BH' %}" style="padding: 4px; border: 1px solid black; border-radius: 4px;">Aceptar</a>
-    {% endif %}
-  </form>
   
   <!--<a href="{% url 'seleccionar-comision-BH' %}" style="padding: 4px; border: 1px solid black; border-radius: 4px;">Aceptar</a>-->
 </div>
 {% endblock %}
-
-
-
