@@ -20,7 +20,7 @@ class Herramienta(models.Model):
 class Aula(models.Model):
     #pk = models.IntegerField(primary_key=True) # espacio o integer: nuestro, sin consumirlas, sino cargandolas nososotros
     nombre = models.CharField(max_length=255, unique=True) # nombre o string: nuestro
-    cant_cupos = models.IntegerField() # Capacidad
+    capacidad = models.IntegerField() # Capacidad
      
 
     tipos = [("COMUN", "Comun"),
@@ -31,6 +31,7 @@ class Aula(models.Model):
     
     tipo = models.CharField(max_length=20, choices=tipos, default="COMUN")
     herramientas = models.ManyToManyField(Herramienta, blank=True)#Verificar el modelo, queremos el booleano o el texto de las herramientas
+    aulas_cercanas = models.ManyToManyField("self", blank=True, symmetrical=True)  # Relación bidireccional
 
     def __str__(self) :
         return self.nombre
@@ -41,9 +42,15 @@ class Aula(models.Model):
         ]
 
 class Espacio_Aula(models.Model):
-    nombre_combinado = models.CharField(max_length=100)
-    aula = models.ForeignKey(Aula, on_delete=models.CASCADE, null=True)
+    nombre_combinado = models.CharField(max_length=100, unique=True)
+    aulas = models.ManyToManyField(Aula, related_name="grupos_extensibles")
     capacidad_total = models.IntegerField(default=0)
+
+    def capacidad_total(self):
+        return sum(aula.capacidad for aula in self.aulas.all())
+
+    def herramientas_totales(self):
+        return set(h for aula in self.aulas.all() for h in aula.herramientas.all())
     
     def __str__(self): return self.nombre_combinado
 
@@ -100,7 +107,7 @@ class Comision(models.Model):
     preferencias = models.ManyToManyField(Herramienta, blank=True)
     # requiere_aula_exclusiva = models.BooleanField(default=False)
     #
-    aula_exclusiva = models.ForeignKey(Espacio_Aula, on_delete=models.CASCADE, null=True, default=None)
+    aula_exclusiva = models.ForeignKey(Aula, on_delete=models.CASCADE, null=True, default=None)
 
     def __str__(self) :
         return self.nombre

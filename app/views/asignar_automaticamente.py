@@ -8,9 +8,65 @@ from django.core.management.base import BaseCommand
 from django.db import OperationalError
 from django.db import models
 
+from django.db.models import Q
+
+def esta_ocupado(espacio_aula, comision_bh):
+    """Verifica si el espacio_aula ya está asignado en el mismo horario y día"""
+    return Asignacion.objects.filter(
+        espacio_aula=espacio_aula,
+        comision_bh__dia=comision_bh.dia,
+        comision_bh__hora_ini__lt=comision_bh.hora_fin,
+        comision_bh__hora_fin__gt=comision_bh.hora_ini,
+        comision_bh__fecha_ini__lte=comision_bh.fecha_fin,
+        comision_bh__fecha_fin__gte=comision_bh.fecha_ini
+    ).exists()
+
+def asignar_espacio_aula(comision_bh):
+    """Asigna un espacio de aula disponible a una comisión en su banda horaria"""
+
+    comision = comision_bh.comision
+    capacidad_necesaria = comision.cant_insc
+    herramientas_requeridas = set(comision.preferencias.all())
+
+    # Buscar aulas individuales disponibles
+    aulas_disponibles = Aula.objects.exclude(
+        id__in=Asignacion.objects.filter(comision_bh__dia=comision_bh.dia)
+        .values_list("espacio_aula_id", flat=True)
+    ).order_by("-capacidad")
+
+    for aula in aulas_disponibles:
+        if aula.capacidad >= capacidad_necesaria and not esta_ocupado(aula, comision_bh):
+            # Verificar herramientas
+            if herramientas_requeridas.issubset(set(aula.herramientas.all())):
+                return Asignacion.objects.create(
+                    espacio_aula=aula,  # Aula individual
+                    comision_bh=comision_bh,
+                    real=True
+                )
+
+    # Si no hay aulas individuales, intentar con grupos extensibles
+    grupos_disponibles = Espacio_Aula.objects.exclude(
+        id__in=Asignacion.objects.filter(comision_bh__dia=comision_bh.dia)
+        .values_list("espacio_aula_id", flat=True)
+    ).order_by("-capacidad")
+
+    for grupo in grupos_disponibles:
+        if grupo.capacidad >= capacidad_necesaria and not esta_ocupado(grupo, comision_bh):
+            # Verificar herramientas
+            if herramientas_requeridas.issubset(set(grupo.herramientas.all())):
+                return Asignacion.objects.create(
+                    espacio_aula=grupo,  # Espacio_Aula (grupo de aulas)
+                    comision_bh=comision_bh,
+                    real=True
+                )
+
+    return None  # No se pudo asignar aula
+
 
 class AsignarAutomaticamenteViewORM(TemplateView):
     template_name = 'asignar_automaticamente.html'
+
+    
   
     def post(self, request, *args, **kwargs):
         context = super().get_context_data(**kwargs)
