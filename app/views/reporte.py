@@ -11,31 +11,27 @@ class aulas_asignadas_reporte(TemplateView):
         context = super().get_context_data(**kwargs)
 
         pk = self.kwargs.get("pk")
-        print(pk)
 
-        
-        esp_aula = Espacio_Aula.objects.get(id=pk)
-        context["esp_aula"] = esp_aula
+        try:
+            esp_aula = Espacio_Aula.objects.get(id=pk)
+            context["esp_aula"] = esp_aula
+        except Espacio_Aula.DoesNotExist:
+            context["error"] = "Espacio de aula no encontrado"
+            return context
 
-        aula = Aula.objects.get(id=esp_aula.aula_id)
-        context["aula"] = aula
+        # Si es un grupo de aulas extensibles, obtiene todas las aulas asociadas
+        aulas = esp_aula.aulas.all() if esp_aula.aulas.exists() else [esp_aula]
+        context["aulas"] = aulas
 
-        
-        asignaciones = Asignacion.objects.filter(espacio_aula_id = pk, real=True)
+        # Obtener asignaciones de este espacio
+        asignaciones = Asignacion.objects.filter(espacio_aula=esp_aula, real=True)
         context["asignaciones"] = asignaciones
 
-        asig_list = list(asignaciones)
-        comisionesBH_ids = []
-        for asig in asig_list:
-            comiBH = Comision_BH.objects.get(id=asig.comision_bh_id)
-            comisionesBH_ids.append(comiBH.id)
-
-
-        comisionBH_QS = Comision_BH.objects.filter(id__in = comisionesBH_ids)
+        # Obtener las comisiones relacionadas con las asignaciones
+        comisionesBH_ids = asignaciones.values_list("comision_bh_id", flat=True)
+        comisionBH_QS = Comision_BH.objects.filter(id__in=comisionesBH_ids)
         context["ComisionesBH"] = comisionBH_QS
 
-        print(context)
-
         return context
-    
+
 

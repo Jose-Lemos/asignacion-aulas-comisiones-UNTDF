@@ -10,624 +10,146 @@ from django.db import models
 
 from django.db.models import Q
 
-def esta_ocupado(espacio_aula, comision_bh):
-    """Verifica si el espacio_aula ya está asignado en el mismo horario y día"""
-    return Asignacion.objects.filter(
-        espacio_aula=espacio_aula,
-        comision_bh__dia=comision_bh.dia,
-        comision_bh__hora_ini__lt=comision_bh.hora_fin,
-        comision_bh__hora_fin__gt=comision_bh.hora_ini,
-        comision_bh__fecha_ini__lte=comision_bh.fecha_fin,
-        comision_bh__fecha_fin__gte=comision_bh.fecha_ini
-    ).exists()
-
-def asignar_espacio_aula(comision_bh):
-    """Asigna un espacio de aula disponible a una comisión en su banda horaria"""
-
-    comision = comision_bh.comision
-    capacidad_necesaria = comision.cant_insc
-    herramientas_requeridas = set(comision.preferencias.all())
-
-    # Buscar aulas individuales disponibles
-    aulas_disponibles = Aula.objects.exclude(
-        id__in=Asignacion.objects.filter(comision_bh__dia=comision_bh.dia)
-        .values_list("espacio_aula_id", flat=True)
-    ).order_by("-capacidad")
-
-    for aula in aulas_disponibles:
-        if aula.capacidad >= capacidad_necesaria and not esta_ocupado(aula, comision_bh):
-            # Verificar herramientas
-            if herramientas_requeridas.issubset(set(aula.herramientas.all())):
-                return Asignacion.objects.create(
-                    espacio_aula=aula,  # Aula individual
-                    comision_bh=comision_bh,
-                    real=True
-                )
-
-    # Si no hay aulas individuales, intentar con grupos extensibles
-    grupos_disponibles = Espacio_Aula.objects.exclude(
-        id__in=Asignacion.objects.filter(comision_bh__dia=comision_bh.dia)
-        .values_list("espacio_aula_id", flat=True)
-    ).order_by("-capacidad")
-
-    for grupo in grupos_disponibles:
-        if grupo.capacidad >= capacidad_necesaria and not esta_ocupado(grupo, comision_bh):
-            # Verificar herramientas
-            if herramientas_requeridas.issubset(set(grupo.herramientas.all())):
-                return Asignacion.objects.create(
-                    espacio_aula=grupo,  # Espacio_Aula (grupo de aulas)
-                    comision_bh=comision_bh,
-                    real=True
-                )
-
-    return None  # No se pudo asignar aula
-
-
 class AsignarAutomaticamenteViewORM(TemplateView):
     template_name = 'asignar_automaticamente.html'
 
-    
-  
     def post(self, request, *args, **kwargs):
         context = super().get_context_data(**kwargs)
-        cant_tot_asig_algoritmo = 0
-        cant_tot_no_asig_algoritmo = 0
 
-        # Obtener los espacios_aulas que tienen el campo 'nombre_combinado' repetido
-        aulas_repetidas = Espacio_Aula.objects.values('nombre_combinado').annotate(num_repeticiones=Count('nombre_combinado')).filter(num_repeticiones__gt=1)
-        aul_rep_ids_list = []
-        
-        for aulas_ext in aulas_repetidas:
-            nombre = aulas_ext['nombre_combinado']
-            num_repeticiones = aulas_ext['num_repeticiones']
-            aulas_con_nombre_repetido = Espacio_Aula.objects.filter(nombre_combinado=nombre)
-            print(f"Nombre: {nombre}, Repeticiones: {num_repeticiones}")
-            ids_aulas_ext = []
-            ids_esp_aula_ext = []
-            for esp_au in aulas_con_nombre_repetido:
-                ids_aulas_ext.append(esp_au.aula_id)
-                ids_esp_aula_ext.append(esp_au.id)
-                print(f"ID del objeto: {esp_au.id}")
-            print("IDs Aulas:")
-            #print(ids_aulas_ext)
-            Au_Rep_Ids = {"id": ids_esp_aula_ext,"nombre_combinado": nombre, "repeticiones": num_repeticiones, "ids_aulas":ids_aulas_ext}
-            aul_rep_ids_list.append(Au_Rep_Ids)
-        print('############------------------->',aul_rep_ids_list, '\n')
-        #print(ids_esp_aula_ext)
-        #### Asignacion de las comisiones con preferencias de Aulas ####
-        ComisionesBH = Comision_BH.objects.all().order_by("comision")
+        # Contadores generales
+        total_algoritmo = 0
+        comisiones_asignadas_algoritmo = 0
+        comisiones_no_asignadas_algoritmo = 0
+        total_comisiones = Comision_BH.objects.filter(comision__cant_insc__gt=0).count()
+        comisiones_asignadas = Asignacion.objects.count()
+        comisiones_no_asignadas = total_comisiones - comisiones_asignadas
 
-        #Obtener las comisiones BH asignadas
-        comisionesBH_ids_asignadas = Asignacion.objects.values_list('comision_bh', flat=True)
-        comisionesBH_no_asignadas = ComisionesBH.exclude(id__in=comisionesBH_ids_asignadas)
-        #comisiones_no_asignadas
-        comisiones_ids_sin_asignar = comisionesBH_no_asignadas.values_list('comision_id', flat=True)
-        comisiones_sin_asignar = Comision.objects.all().filter(nombre__in = comisiones_ids_sin_asignar)
+        # Contadores específicos de tipos de asignación
+        asignaciones_por_aula_exclusiva = 0
+        asignaciones_por_capacidad = 0
+        asignaciones_por_herramientas = 0
 
-        #print(comisiones_sin_asignar)
-        #print("Comi:")
-        #print(comi)
-        #asignaciones = Asignacion.objects.all()
-        # Comisiones con Preferencias de Aulas
-        comision_con_preferencia_aula = comisiones_sin_asignar.exclude(aula_exclusiva_id__isnull = True)  #Obtenemos las comisiones con prefencias de aulas
-        #print(comision_con_preferencia_aula)
+        # Registro de motivos de no asignación
+        motivos_no_asignacion = []
 
-        list_names_coms = [str]
-        for com in comision_con_preferencia_aula:
-            list_names_coms.append(com.nombre)
-        comisiones_BH_pref_aula = comisionesBH_no_asignadas.filter(comision_id__in = list_names_coms)    #Obtenemos las BH de las comisiones con preferencias de aulas
+        # Obtener todas las comisiones sin asignar con al menos un inscrito
+        comisiones_bh = Comision_BH.objects.filter(
+            ~models.Exists(Asignacion.objects.filter(comision_bh=models.OuterRef('pk'))),
+            comision__cant_insc__gt=0
+        ).order_by('-comision__cant_insc')
 
-        #comision_con_preferencia_aula = comision_con_preferencia_aula.exclude()
-        
-        #print(comisiones_BH_pref_aula)
-        cant_pref_asig = 0
-        cant_no_asig = 0
-        cant_total_asig = comisiones_BH_pref_aula.count()
+        total_algoritmo = comisiones_bh.count()
 
-        
+        for comision_bh in comisiones_bh:
+            comision = comision_bh.comision
+            motivos = []
 
-        print("Total de comisionesBH con Preferencias de Aulas: {0}".format(cant_total_asig))
-        aulas = Espacio_Aula.objects.all()  #Obtenemos todos lo espacios aulas
-        for comBH_pref in comisiones_BH_pref_aula:
-            comision = Comision.objects.get(nombre = comBH_pref.comision_id)
-            aula_pref = Espacio_Aula.objects.get(id = comision.aula_exclusiva_id)
-            #definimos los atributos para filtrar los rangos de las asignaciones
-            dia = comBH_pref.dia
-            hora_ini = comBH_pref.hora_ini
-            hora_fin = comBH_pref.hora_fin
+            # Prioridad 1: Aula exclusiva si la tiene definida
+            if comision.aula_exclusiva:
+                aula_normal = Aula.objects.get(id=comision.aula_exclusiva)
+                espacio_aula = Espacio_Aula.objects.filter(aulas=comision.aula_exclusiva).first()
+                if aula_normal:
+                    Asignacion.objects.create(aula=aula_normal, comision_bh=comision_bh)
+                    comisiones_asignadas_algoritmo += 1
+                    asignaciones_por_aula_exclusiva += 1
+                    continue
+                elif espacio_aula:
+                    Asignacion.objects.create(espacio_aula=espacio_aula, comision_bh=comision_bh, real=True)
+                    comisiones_asignadas_algoritmo += 1
+                    asignaciones_por_aula_exclusiva += 1
+                    continue
+                else:
+                    motivos.append("No se encontró un espacio aula para el aula exclusiva.")
 
-            asignaciones_en_rango = Asignacion.objects.filter(
-                comision_bh_id__dia=dia,
-                comision_bh_id__hora_ini__lt=hora_fin,
-                comision_bh_id__hora_fin__gt=hora_ini,
+            # Obtener aulas disponibles que no estén asignadas en el mismo horario
+            aulas_disponibles = Aula.objects.exclude(
+                id__in=Asignacion.objects.filter(comision_bh__dia=comision_bh.dia)
+                .values_list("aula_id", flat=True)
             )
 
-            # Excluir las aulas que están asignadas en ese rango de horario, para obtener las aulas disponibles en el rango requerido
-            aulas_disponibles_BH = aulas.exclude(asignacion__in=asignaciones_en_rango)
+            grupos_extensibles_disponibles = Espacio_Aula.objects.exclude(
+                id__in=Asignacion.objects.filter(comision_bh__dia=comision_bh.dia)
+                .values_list("espacio_aula_id", flat=True)
+            )
 
-            if (aula_pref.id in ids_esp_aula_ext):
-                print("La comisión Requiere un aula extensible!!")
-                nombre_combinado = aula_pref.nombre_combinado
-                
-            else: 
-                print("la comisión NO REQUIERE un aula extensible!!")
+            # Ordenar grupos extensibles disponibles por capacidad total
+            grupos_ordenados = sorted(
+                grupos_extensibles_disponibles,
+                key=lambda esp: esp.capacidad_total(),
+                reverse=True
+            )
+
+            # Ordenar aulas disponibles por capacidad total
+            aulas_ordenadas = aulas_disponibles.order_by('-capacidad')
+
+            asignada = False
+
+            # Intentar asignar por capacidad del aula (+10 de margen)
+            for aula in aulas_ordenadas:
+                if aula.capacidad + 10 >= comision.cant_insc:
+                    Asignacion.objects.create(aula=aula, comision_bh=comision_bh)
+                    comisiones_asignadas_algoritmo += 1
+                    asignaciones_por_capacidad += 1
+                    asignada = True
+                    break
             
-            if aulas_disponibles_BH.contains(aula_pref):
-                print("Aula: "+ aula_pref.nombre_combinado + " DISPONIBLE!!")
-                print("Comision BH: "+ comBH_pref.__str__())
-                #Asignacion.objects.create(espacio_aula=aula_pref, comision_bh=comBH_pref)
-                Asignacion.objects.create(espacio_aula=aula_pref, comision_bh=comBH_pref, real=True)
-                    ################################### Verificación de las aulas extensibles ########################
-                    ###acá hay que corregir
-                    #Au_Rep_Ids = {"id": ids_esp_aula_ext,"nombre_combinado": nombre, "repeticiones": num_repeticiones, "ids_aulas":ids_aulas_ext}
-                    #aul_rep_ids_list.append(Au_Rep_Ids)
-                asignacion_final = []
-                for aurl in aul_rep_ids_list:
-                        #print("dict:", aurl)
-                        ### verificamos desde el lado de las aulas extensibles con más de una
-                    if (aula_pref.id in aurl["id"]):
-                        for aula_pref.id in aurl["ids_aulas"]:
-                            asignacion_final.append(aurl["id"] + aurl["ids_aulas"])
-                        
-                        
+            # Si no le dio la capacidad a las aulas individuales, consultar por las extensibles
+            if not asignada:
+                for espacio_aula in grupos_ordenados:
+                    if espacio_aula.capacidad_total() + 10 >= comision.cant_insc:
+                        Asignacion.objects.create(espacio_aula=espacio_aula, comision_bh=comision_bh, real=True)
+                        comisiones_asignadas_algoritmo += 1
+                        asignaciones_por_capacidad += 1
+                        asignada = True
+                        break
 
-                        ### verificamos desde el lado de las aulas individuales que se pueden hacer extensibles
-                    else: #
-                        if(aula_pref.id in aurl["ids_aulas"]):
-                            asignacion_final.append(aurl["id"])
-                            
-                        
-                            #Asignacion.create
-                        #creamos las asignaciones a todas las aulas para que ya no esté disponible esa BH
-                        #for asig in asignacion_final:
-                         #   aula_asig = Espacio_Aula.objects.get(id = asig)
-                          #  Asignacion.objects.create(espacio_aula=aula_asig, comision_bh=comiBH)
-                    #simplificamos la lista para no tener ids repetidos
-                print("asignacion final de comisiones PREFERIDAS:", asignacion_final)
-                asig_final_simple = []
-                for asig_f in asignacion_final:
-                    for asf in asig_f:
-                        if not(asf in asig_final_simple):
-                            asig_final_simple.append(asf)
-                    #creamos las asignaciones a todas las aulas para que ya no esté disponible esa BH
-                for asig in asig_final_simple:
-                    aula_pref = Espacio_Aula.objects.get(id = asig)
-                    Asignacion.objects.create(espacio_aula=aula_pref, comision_bh=comBH_pref, real=False)    
-                print("###################_____________LISTAS-ASIGNACION FINAL:", asignacion_final)
-                    #print("asig_final_final", asig_final_final)
-                print("asig_final_simple", asig_final_simple)
-                print("Asignación Realizada con Éxito")
-                cant_pref_asig +=1
-                cant_tot_asig_algoritmo +=1
-                #FALTA AGREGAR LA VERIFICACIÓN Y ASIGNACIÓN DE LAS AULAS EXTENSIBLES
-                ######################################################################### verificacion de las aulas extensibles
-            else:
-                print("Aula: "+ aula_pref.nombre_combinado + " OCUPADA!!")
-                print("Comision BH: "+ comBH_pref.__str__())
-                print("NO SE PUDO REALIZAR LA ASIGNACIÓN!")
-                cant_no_asig +=1
-                cant_tot_no_asig_algoritmo +=1
+            # Si no se asignó por capacidad, intentamos por herramientas
+            if not asignada:
+                for espacio_aula in aulas_ordenadas:
+                    herramientas_aula = set(espacio_aula.herramientas.all())
+                    herramientas_comision = set(comision.preferencias.all())
 
-        
-        print("{0} Comisiones Asignadas a las Aulas Preferidas!!".format(cant_pref_asig))
-        print("{0} Comisiones NO ASIGNADAS a las Aulas Preferidas!!".format(cant_no_asig))
-        #### Fin de Asignaciones de Aulas Preferidas ####
+                    if herramientas_comision.issubset(herramientas_aula):
+                        Asignacion.objects.create(aula=espacio_aula, comision_bh=comision_bh)
+                        comisiones_asignadas_algoritmo += 1
+                        asignaciones_por_herramientas += 1
+                        asignada = True
+                        break
 
-        
-
-
-
-
-
-        #### Asignar Comisiones con Requerimientos de Herramientas ####
-        #Obtener las comisiones BH asignadas
-        comisionesBH_ids_asignadas = Asignacion.objects.values_list('comision_bh', flat=True)
-        comisionesBH_no_asignadas = ComisionesBH.exclude(id__in=comisionesBH_ids_asignadas)
-        #comisiones_no_asignadas
-        comisiones_ids_sin_asignar = comisionesBH_no_asignadas.values_list('comision_id', flat=True)
-        comisiones_sin_asignar = Comision.objects.all().filter(nombre__in = comisiones_ids_sin_asignar)
-
-
-        aulas = Espacio_Aula.objects.all()  #Obtenemos todos lo espacios aulas
-        #comisiones_con_herramientas = comisiones_sin_asignar.preferencias.through.
-        #comisiones_ids_con_herramientas = Comision.preferencias.through.objects.all().filter(comision_id__in = comisiones_ids_sin_asignar)
-        comisiones_ids_con_herramientas_rep = list(Comision.preferencias.through.objects.all().values_list('comision_id', flat=True))
-        comisiones_ids_con_herramientas = []
-
-        #Este bucle es para eliminar los ids reetidos de la lista de comisiones con preferencias de herramientas
-        for ids_com_rep in comisiones_ids_con_herramientas_rep:
-            if (not(ids_com_rep in comisiones_ids_con_herramientas)):
-                comisiones_ids_con_herramientas.append(ids_com_rep)
-
-        #comisiones_con_herramientas = Comision.preferencias.through.objects.all().filter(comision_id__in = comisiones_ids_con_herramientas)
-        comisiones_con_herramientas = comisiones_sin_asignar.filter(id__in = comisiones_ids_con_herramientas)
-        print(comisiones_ids_con_herramientas)
-        print(comisiones_con_herramientas)
-
-
-
-        #Aulas con Herramientas
-        aulas_ids_con_herramientas_rep = list(Aula.herramientas.through.objects.all().values_list('aula_id', flat=True))
-        aulas_ids_con_herramientas = []
-
-        #Bucle para eliminar los ids repetidos de las aulas con herramientas
-        for ids_aulas_rep in aulas_ids_con_herramientas_rep:
-            if (not(ids_aulas_rep in aulas_ids_con_herramientas)):
-                aulas_ids_con_herramientas.append(ids_aulas_rep)    #Se obtiene una lista con todos los ids de las aulas que tienen al menos una herramienta
-
-        #comisiones_con_herramientas = Comision.preferencias.through.objects.all().filter(comision_id__in = comisiones_ids_con_herramientas)
-        aulas_con_herramientas = aulas.filter(id__in = aulas_ids_con_herramientas)    #Objeto de aulas con al menos una herramienta
-        print(aulas_ids_con_herramientas)
-        print(aulas_con_herramientas)
-
-        #aula_herr = {'id_aula':int, 'herramientas':[]}
-        aulas_herrmientas = []    #Vamos a guardar todas las aulas que tienen herramientas con sus herramientas
-
-        for au in aulas_ids_con_herramientas:
-            herramientas = Aula.herramientas.through.objects.filter(aula_id = au).values_list('herramienta_id', flat=True)
-            aula_herr = {'id_aula':au, 'herramientas':herramientas}
-            aulas_herrmientas.append(aula_herr)     
-            #print(herramientas)
-            print(aula_herr)
-
-        print(aulas_herrmientas)
-
-
-
-
-        list_names_coms = [str]
-        for com in comisiones_con_herramientas:
-            list_names_coms.append(com.nombre)
-        comisiones_BH_pref_herr = comisionesBH_no_asignadas.filter(comision_id__in = list_names_coms)    #Obtenemos las BH de las comisiones con preferencias de aulas
-
-
-        #print(comisiones_BH_pref_aula)
-        cant_herr_asig = 0
-        cant_no_herr_asig = 0
-        cant_total_herr_asig = comisiones_BH_pref_herr.count()
-
-        
-
-        print("Total de comisionesBH con Preferencias de Herramientas: {0}".format(cant_total_herr_asig))
-        
-        for comBH_pref_herr in comisiones_BH_pref_herr:
-            comision = comisiones_con_herramientas.get(nombre = comBH_pref_herr.comision_id)
-            #aula_pref = Espacio_Aula.objects.get(id = 1)
-            cant_insc = comision.cant_insc
-
-            
-
-            herramientas_comision = Comision.preferencias.through.objects.filter(comision_id=comision.id).values_list('herramienta_id', flat=True)    #-><QuerySet []
-            #herr_aula = Aula.herramientas.through.objects.filter(aula_id=comision.id).values_list('herramienta_id', flat=True)
-            #definimos los atributos para filtrar los rangos de las asignaciones
-            #print("herr_com")
-            print("Herramientas Comision:")
-            print(herramientas_comision)
-
-            ids_aulas_matcheadas = []
-            #MATCH entre aulas con herramientas y comisiones con requerimiento de aulas con herramientas
-            for au_herr in aulas_herrmientas:
-                herramientas = dict(au_herr)['herramientas']   #Obtengo las herrmientas de las aulas con herramientas -> <QuerySet [herramienta_id]>
-                matches = all( elemento in herramientas for elemento in  herramientas_comision ) #Obtengo True si la lista de herranmientas de la comisión pertenece a la lista de herramientas del aula
-                #
-                if matches == True :
-                    #print("posibles aulas")
-                    ids_aulas_matcheadas.append(au_herr["id_aula"])  #agrego el id del aula a la lista de aulas matcheadas
-                #print("herramientas MATCH")
-                #print(herramientas)
-                #print(matches)
-            
-            print("Aulas Matcheadas:")
-            print(ids_aulas_matcheadas)
-
-            if ((len(ids_aulas_matcheadas)) > 0): 
-                print("existe al menos un aula match")
-
-                aulas_matcheadas = Aula.objects.filter(id__in=ids_aulas_matcheadas)
-                esp_aulas_matcheadas = Espacio_Aula.objects.filter(aula_id__in = aulas_matcheadas)
-
-                print(esp_aulas_matcheadas)
-                dia = comBH_pref_herr.dia
-                hora_ini = comBH_pref_herr.hora_ini
-                hora_fin = comBH_pref_herr.hora_fin
+            # Si no se pudo asignar, registrar los motivos
+            if not asignada:
+                comisiones_no_asignadas_algoritmo += 1
+                if not aulas_disponibles.exists():
+                    motivos.append("No hay aulas disponibles en el horario solicitado.")
+                elif all(esp.capacidad_total() + 10 < comision.cant_insc for esp in aulas_disponibles):
+                    motivos.append("No hay aulas con suficiente capacidad.")
+                elif not any(set(comision.preferencias.all()).issubset(set(esp.herramientas.all())) for esp in aulas_disponibles):
+                    motivos.append("No hay aulas con las herramientas requeridas.")
                 
+                motivos_no_asignacion.append({
+                    "comision": comision.nombre,
+                    "motivos": motivos
+                })
 
-                asignaciones_en_rango = Asignacion.objects.filter(
-                    comision_bh_id__dia=dia,
-                    comision_bh_id__hora_ini__lt=hora_fin,
-                    comision_bh_id__hora_fin__gt=hora_ini,
-                )
+        comisiones_asignadas = Asignacion.objects.count()
+        comisiones_no_asignadas = total_comisiones - comisiones_asignadas
 
-                # Excluir las aulas que están asignadas en ese rango de horario, para obtener las aulas disponibles en el rango requerido
-                aulas_disponibles_BH = esp_aulas_matcheadas.exclude(asignacion__in=asignaciones_en_rango)
-                
-                #Se agrega la ponderación de hasta 10 inscritos más que la capacidad másxima del AULA
-                if cant_insc <= 10:
-                    cant_insc = 0
-                else:
-                    cant_insc = cant_insc - 10
-
-                #FIiltro por aulas con mayor o igual capacidad que la requerida por la comision
-                aulas_disponibles_BH = aulas_disponibles_BH.filter(
-                    capacidad_total__gt = cant_insc
-                ).order_by("capacidad_total")
-
-                
-
-
-                #De todas las aulas con la capacidad y herramientas necesarias que no han sido asignadas, vamos a asignar la 1era
-                if aulas_disponibles_BH.count() > 0:
-                    aula_pref_herr1 = aulas_disponibles_BH.first()
-                    print("AUla PREF HERR")
-                    print(aula_pref_herr1)
-                    print("Aula: "+ aula_pref_herr1.nombre_combinado + " DISPONIBLE!!")
-                    print("Comision BH: "+ comBH_pref_herr.__str__())
-                    #Asignacion.objects.create(espacio_aula=aula_pref_herr1, comision_bh=comBH_pref_herr)
-                    Asignacion.objects.create(espacio_aula=aula_pref_herr1, comision_bh=comBH_pref_herr, real=True)
-                    ################################### Verificación de las aulas extensibles ########################
-                    ###acá hay que corregir
-                    #Au_Rep_Ids = {"id": ids_esp_aula_ext,"nombre_combinado": nombre, "repeticiones": num_repeticiones, "ids_aulas":ids_aulas_ext}
-                    #aul_rep_ids_list.append(Au_Rep_Ids)
-                    asignacion_final = []
-                    for aurl in aul_rep_ids_list:
-                        #print("dict:", aurl)
-                        ### verificamos desde el lado de las aulas extensibles con más de una
-                        if (aula_pref_herr1.id in aurl["id"]):
-                            for aula_pref_herr1.id in aurl["ids_aulas"]:
-                                asignacion_final.append(aurl["id"] + aurl["ids_aulas"])
-                        
-                        
-
-                        ### verificamos desde el lado de las aulas individuales que se pueden hacer extensibles
-                        else: #
-                            if(aula_pref_herr1.id in aurl["ids_aulas"]):
-                                asignacion_final.append(aurl["id"])
-                            
-                        
-                            #Asignacion.create
-                        #creamos las asignaciones a todas las aulas para que ya no esté disponible esa BH
-                        #for asig in asignacion_final:
-                         #   aula_asig = Espacio_Aula.objects.get(id = asig)
-                          #  Asignacion.objects.create(espacio_aula=aula_asig, comision_bh=comiBH)
-                    #simplificamos la lista para no tener ids repetidos
-                    print("asignacion final de comisiones con Herramientas:", asignacion_final)
-                    asig_final_simple = []
-                    for asig_f in asignacion_final:
-                        for asf in asig_f:
-                            if not(asf in asig_final_simple):
-                                asig_final_simple.append(asf)
-                    #creamos las asignaciones a todas las aulas para que ya no esté disponible esa BH
-                    for asig in asig_final_simple:
-                        aula_pref_herr1 = Espacio_Aula.objects.get(id = asig)
-                        Asignacion.objects.create(espacio_aula=aula_pref_herr1, comision_bh=comBH_pref_herr, real=False)    
-                    print("###################_____________LISTAS-ASIGNACION FINAL:", asignacion_final)
-                    #print("asig_final_final", asig_final_final)
-                    print("asig_final_simple", asig_final_simple)
-                    print("Asignación Realizada con Éxito")
-                    cant_herr_asig +=1
-                    cant_tot_asig_algoritmo +=1
-                    #FALTA AGREGAR LA VERIFICACIÓN Y ASIGNACIÓN DE LAS AULAS EXTENSIBLES
-                    ######################################################################### verificacion de las aulas extensibles
-                else:
-                    print("No EXISTEN AULAS DISPONIBLES!!")
-                    print("Comision BH: "+ comBH_pref_herr.__str__())
-                    print("NO SE PUDO REALIZAR LA ASIGNACIÓN!!")
-                    cant_no_herr_asig +=1
-                    cant_tot_no_asig_algoritmo +=1
-
-            
-            else:
-                print("NO EXISTE ningun aula MATCH")
-                print("NO SE PUDO REALIZAR LA ASIGNACIÓN!!")
-
-            print("{0} Comisiones Asignadas a las Aulas con Herramientas Requeridas!!".format(cant_herr_asig))
-            print("{0} Comisiones NO ASIGNADAS a las Aulas con Herramientas Requeridas!!".format(cant_no_herr_asig))
-            
-
-
-
-        #### FIN DE ASIGNACION DE COMISIONES CON HERRAMIENTAS ####
-
-        #### ASIGNACIÓN DE COMISIONES POR CANTIDAD DE INSCRITOS ####
-        #Obtener las comisiones BH asignadas
-        comisionesBH_ids_asignadas = Asignacion.objects.values_list('comision_bh', flat=True)
-        comisionesBH_no_asignadas = ComisionesBH.exclude(id__in=comisionesBH_ids_asignadas).order_by("-comision_id__cant_insc")
-        #comisiones_no_asignadas
-        comisiones_ids_sin_asignar = comisionesBH_no_asignadas.values_list('comision_id', flat=True)
-        comisiones_sin_asignar = Comision.objects.all().filter(nombre__in = comisiones_ids_sin_asignar)
-
-
-        cant_asig = 0
-        cant_not_asig = 0
-        cantidad_total_asig = comisionesBH_no_asignadas.count()
-
-
-        aulas = Espacio_Aula.objects.all()  #Obtenemos todos lo espacios aulas
-
-        print("Total de comisionesBH para asignar: {0}".format(cantidad_total_asig))
-       
-
-        for comiBH in comisionesBH_no_asignadas:
-            comision = Comision.objects.get(nombre = comiBH.comision_id)
-            cant_insc = comision.cant_insc
-            #aula_pref = Espacio_Aula.objects.get(id = comision.aula_exclusiva_id)
-            #definimos los atributos para filtrar los rangos de las asignaciones
-
-            if (cant_insc > 0):
-                dia = comiBH.dia
-                hora_ini = comiBH.hora_ini
-                hora_fin = comiBH.hora_fin
-                
-
-                asignaciones_en_rango = Asignacion.objects.filter(
-                    comision_bh_id__dia=dia,
-                    comision_bh_id__hora_ini__lt=hora_fin,
-                    comision_bh_id__hora_fin__gt=hora_ini,
-                )
-
-                # Excluir las aulas que están asignadas en ese rango de horario, para obtener las aulas disponibles en el rango requerido
-                aulas_disponibles_BH = aulas.exclude(asignacion__in=asignaciones_en_rango)
-
-                
-
-                print("Aulas disponibles antes de aplicar el filtro", aulas_disponibles_BH)
-
-                for au_ext in aulas_disponibles_BH:
-                    if (au_ext.id in ids_esp_aula_ext ):
-                        print("De las aulas disponibles para una comision con herramienta, se debe verificar si el aula extensible realmente está disponible")
-                        
-                        #for aril in aul_rep_ids_list:
-                        #Se va a buscar el aula en la lista de aulas extensibles y retornar la posicion del elemento
-                        ind = -1
-                        for index, diccionario in enumerate(aul_rep_ids_list):
-                            if au_ext.nombre_combinado in diccionario.values():
-                                print(f"El valor '{au_ext.nombre_combinado}' se encuentra en el diccionario en la posición {index}")
-                                ind = index
-                                break  # Para detener la búsqueda luego de encontrar la primera coincidencia
-                            else:
-                                print(f"El valor '{au_ext.nombre_combinado}' no se encuentra en ninguno de los diccionarios")
-
-                        if ind > -1:
-                            aux_ver = aul_rep_ids_list[ind]["nombre_combinado"]
-                            list_aulas_ids = aul_rep_ids_list[ind]["ids_aulas"]
-                            print("aula_nombre_combinado:", aux_ver)
-                            print("lista de aulas relacionadas: ", list_aulas_ids)
-
-                            ids_au_ext_nd = []
-                            aulas_matcheadas = []
-                            for id_aula in list_aulas_ids:
-                                aula = Espacio_Aula.objects.get(id = id_aula)
-
-                                #FALTA CORREGIR ESTA PARTE
-                                if (aulas_disponibles_BH.contains(aula)):
-                                    print(f"aula {aula.nombre_combinado} perteneciente a {aux_ver} Disponible en la BH requerida por la comision")
-                                else: 
-                                    print(f"aula {aula.nombre_combinado} NO DISPONIBLE")
-                                    ids_au_ext_nd.append(aula.id)
-                                    
-                                    #MATCH entre aulas con herramientas y comisiones con requerimiento de aulas con herramientas
-                                    for au_ext in aul_rep_ids_list:
-                                        if aula.id in au_ext["ids_aulas"]:
-                                            if not(au_ext in aulas_matcheadas):
-                                                aulas_matcheadas.append(au_ext)
-                            print("aulas matcheadas", aulas_matcheadas)
-
-                            list_names_aulas_matcheadas = []
-                            for aulasM in aulas_matcheadas:
-                                list_names_aulas_matcheadas.append(aulasM["nombre_combinado"])
-
-                            print("nombres de las aulas matcheadas: ", list_names_aulas_matcheadas)
-
-                            aulas_disponibles_BH = aulas_disponibles_BH.exclude(nombre_combinado__in = list_names_aulas_matcheadas)
-                                        
-                            #print("aulas extensibles no disponibles: ", ids_au_ext_nd)
-                            #ids_aulas_ext_matcheadas = []
-                            
-                                #print(ids_aulas_matcheadas)
-
-                #Se agrega la ponderación de hasta 10 inscritos más que la capacidad másxima del AULA
-                if cant_insc <= 10:
-                    cant_insc = 0
-                else:
-                    cant_insc = cant_insc - 10
-                
-                #FIiltro por aulas con mayor capacidad
-                aulas_disponibles_BH = aulas_disponibles_BH.filter(
-                    capacidad_total__gt = cant_insc
-                ).order_by("capacidad_total")
-
-                print("Aulas Disponibles", aulas_disponibles_BH)
-                if aulas_disponibles_BH.count() > 0:
-                    aula_asig = aulas_disponibles_BH.first()
-                    print("Aula: "+ aula_asig.nombre_combinado + " DISPONIBLE!!")
-                    print("Comision BH: "+ comiBH.__str__())
-
-                    Asignacion.objects.create(espacio_aula=aula_asig, comision_bh=comiBH, real=True)
-                    ################################### Verificación de las aulas extensibles ########################
-                    ###acá hay que corregir
-                    #Au_Rep_Ids = {"id": ids_esp_aula_ext,"nombre_combinado": nombre, "repeticiones": num_repeticiones, "ids_aulas":ids_aulas_ext}
-                    #aul_rep_ids_list.append(Au_Rep_Ids)
-                    asignacion_final = []
-                    for aurl in aul_rep_ids_list:
-                        #print("dict:", aurl)
-                        ### verificamos desde el lado de las aulas extensibles con más de una
-                        if (aula_asig.id in aurl["id"]):
-                            for aula_asig.id in aurl["ids_aulas"]:
-                                asignacion_final.append(aurl["id"] + aurl["ids_aulas"])
-                        
-                        
-
-                        ### verificamos desde el lado de las aulas individuales que se pueden hacer extensibles
-                        else: #
-                            if(aula_asig.id in aurl["ids_aulas"]):
-                                asignacion_final.append(aurl["id"])
-                            
-                        
-                            #Asignacion.create
-                        #creamos las asignaciones a todas las aulas para que ya no esté disponible esa BH
-                        #for asig in asignacion_final:
-                         #   aula_asig = Espacio_Aula.objects.get(id = asig)
-                          #  Asignacion.objects.create(espacio_aula=aula_asig, comision_bh=comiBH)
-                    #simplificamos la lista para no tener ids repetidos
-                    print("asignacion final de comisiones por cantidad:", asignacion_final)
-                    asig_final_simple = []
-                    for asig_f in asignacion_final:
-                        for asf in asig_f:
-                            if not(asf in asig_final_simple):
-                                asig_final_simple.append(asf)
-                    #creamos las asignaciones a todas las aulas para que ya no esté disponible esa BH
-                    for asig in asig_final_simple:
-                        aula_asig = Espacio_Aula.objects.get(id = asig)
-                        Asignacion.objects.create(espacio_aula=aula_asig, comision_bh=comiBH, real=False)    
-                    print("###################_____________LISTAS-ASIGNACION FINAL:", asignacion_final)
-                    #print("asig_final_final", asig_final_final)
-                    print("asig_final_simple", asig_final_simple)
-                    print("Asignación Realizada con Éxito")
-                    cant_asig +=1
-                    cant_tot_asig_algoritmo +=1
-                    #FALTA AGREGAR LA VERIFICACIÓN Y ASIGNACIÓN DE LAS AULAS EXTENSIBLES
-                    ######################################################################### verificacion de las aulas extensibles
-                else:
-                    print("Aula: no disponible!!!")
-                    print("Comision BH: "+ comiBH.__str__())
-                    print("NO SE PUDO REALIZAR LA ASIGNACIÓN!!")
-                    cant_not_asig +=1
-                    cant_tot_no_asig_algoritmo +=1
-            else:
-                print("Comision BH: "+ comiBH.__str__())
-                cant_not_asig +=1
-                cant_tot_no_asig_algoritmo +=1
-
-
-
-
-
-
-
-
-
-        
-
-        
-        print("{0} Comisiones Asignadas por Cantidad Inscritos!!".format(cant_asig))
-        print("{0} Comisiones NO ASIGNADAS por cantidad Inscritos!!".format(cant_not_asig))
-
-        cantidad_total_asignaciones = Asignacion.objects.all().count()
-        cantidad_total_pendientes = ComisionesBH.count() - cantidad_total_asignaciones
-
-
-        print("{0} Comisiones Asignadas en TOTAL!!".format(cantidad_total_asignaciones))
-        print("{0} Comisiones NO ASIGNADAS del TOTAL!!".format(cantidad_total_pendientes))
-
-        context["comisiones_asignadas_algoritmo"] = cant_tot_asig_algoritmo
-        context["comisiones_no_asignadas_algoritmo"] = cant_tot_no_asig_algoritmo
-        context["total_algoritmo"] = cant_tot_asig_algoritmo + cant_tot_no_asig_algoritmo
-
-        context["comisiones_asignadas"] = cantidad_total_asignaciones
-        context["comisiones_no_asignadas"] = cantidad_total_pendientes
-        context["total_comisiones"] = cantidad_total_asignaciones + cantidad_total_pendientes
+        # Agregar los contadores al contexto para el reporte
+        context.update({
+            "total_algoritmo": total_algoritmo,
+            "comisiones_asignadas_algoritmo": comisiones_asignadas_algoritmo,
+            "comisiones_no_asignadas_algoritmo": comisiones_no_asignadas_algoritmo,
+            "total_comisiones": total_comisiones,
+            "comisiones_asignadas": comisiones_asignadas,
+            "comisiones_no_asignadas": comisiones_no_asignadas,
+            "asignaciones_por_aula_exclusiva": asignaciones_por_aula_exclusiva,
+            "asignaciones_por_capacidad": asignaciones_por_capacidad,
+            "asignaciones_por_herramientas": asignaciones_por_herramientas,
+            "motivos_no_asignacion": motivos_no_asignacion,
+        })
 
         return self.render_to_response(context)
+
 
 
 
@@ -708,7 +230,7 @@ class AsignarAutomaticamenteView(TemplateView):
 
             #FIiltro por aulas con mayor capacidad
             aulas_no_asignadas_rango = aulas_no_asignadas_rango.filter(
-                capacidad_total__gt = cant_insc
+                capacidad_total__gt = cant_insc - 10
             ).order_by("capacidad_total")
 
             # Excluir las aulas que están asignadas en ese rango de horario

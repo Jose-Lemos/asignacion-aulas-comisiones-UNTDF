@@ -1,13 +1,8 @@
 from django.db import models
+from django.forms import ValidationError
 
 class Herramienta(models.Model):
     nombre = models.CharField(max_length=200, unique=True)
-    #cantidad = models.IntegerField(default=1)
-    #pk = models.AutoField(primary_key=True) # integer: autoincremental
-    # proyector = models.BooleanField()
-    # polycom = models.BooleanField()
-    # televisor = models.BooleanField()
-    # computadoras = models.BooleanField()
 
     def __str__(self) :
         return self.nombre
@@ -31,10 +26,14 @@ class Aula(models.Model):
     
     tipo = models.CharField(max_length=20, choices=tipos, default="COMUN")
     herramientas = models.ManyToManyField(Herramienta, blank=True)#Verificar el modelo, queremos el booleano o el texto de las herramientas
-    aulas_cercanas = models.ManyToManyField("self", blank=True, symmetrical=True)  # Relación bidireccional
+    aulas_cercanas = models.ManyToManyField("self", blank=True, symmetrical=True , related_name="aulas_adyacentes")  # Relación bidireccional
 
     def __str__(self) :
         return self.nombre
+    
+    def herramientas_totales(self):
+        """Devuelve un conjunto con todas las herramientas del aula"""
+        return set(self.herramientas.all())
 
     class Meta:
         indexes = [
@@ -139,10 +138,17 @@ class Comision_BH(models.Model): # Misma lógica de consumo que para la cant_ins
 
 class Asignacion(models.Model):
     #pk = models.AutoField(primary_key=True)
-    espacio_aula =  models.ForeignKey(Espacio_Aula, on_delete=models.CASCADE, null=True)
+    aula = models.ForeignKey(Aula, on_delete=models.CASCADE, null=True, blank=True)
+    espacio_aula = models.ForeignKey(Espacio_Aula, on_delete=models.CASCADE, null=True, blank=True)    
     comision_bh =  models.ForeignKey(Comision_BH, on_delete=models.CASCADE, null=True)
-    real = models.BooleanField(default=False, null=True, blank=True)
+    #real = models.BooleanField(default=False, null=True, blank=True)
     # ToDo: agregar un timestamp --> puede ser currentDate() o cbh.fecha_ini
+
+    def clean(self):
+        if not self.aula and not self.espacio_aula:
+            raise ValidationError("Debes asignar un Aula o un EspacioAula, pero no ambos.")
+        if self.aula and self.espacio_aula:
+            raise ValidationError("No puedes asignar ambos a la vez.")
 
     def get_com(self):
         return self.comision_bh.id

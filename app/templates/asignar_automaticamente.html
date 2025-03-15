@@ -42,6 +42,22 @@
         <p>Total de Comisiones en la Base de Datos: {{ total_comisiones }}</p>
         <p>Total de Comisiones asignadas: {{ comisiones_asignadas }}</p>
         <p>Total de Comisiones no asignadas: {{ comisiones_no_asignadas }}</p>
+
+        <h3>Distribución de Asignaciones:</h3>
+        <ul>
+            <li>Por Aula Exclusiva: {{ asignaciones_por_aula_exclusiva }}</li>
+            <li>Por Capacidad: {{ asignaciones_por_capacidad }}</li>
+            <li>Por Herramientas: {{ asignaciones_por_herramientas }}</li>
+        </ul>
+
+        {% if motivos_no_asignacion %}
+            <h3>Comisiones no asignadas y sus motivos:</h3>
+            <ul>
+                {% for item in motivos_no_asignacion %}
+                    <li>{{ item.comision }}: {{ item.motivos|join:", " }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
     {% endif %}
 </div></div>
 
