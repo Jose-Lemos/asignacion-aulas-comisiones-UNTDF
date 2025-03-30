@@ -106,7 +106,7 @@ class Comision(models.Model):
     preferencias = models.ManyToManyField(Herramienta, blank=True)
     # requiere_aula_exclusiva = models.BooleanField(default=False)
     #
-    aula_exclusiva = models.ForeignKey(Aula, on_delete=models.CASCADE, null=True, default=None)
+    aula_exclusiva = models.ForeignKey(Espacio_Aula, on_delete=models.CASCADE, null=True, default=None)
 
     def __str__(self) :
         return self.nombre

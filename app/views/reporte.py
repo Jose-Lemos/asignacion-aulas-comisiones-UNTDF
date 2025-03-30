@@ -24,7 +24,7 @@ class aulas_asignadas_reporte(TemplateView):
         context["aulas"] = aulas
 
         # Obtener asignaciones de este espacio
-        asignaciones = Asignacion.objects.filter(espacio_aula=esp_aula, real=True)
+        asignaciones = Asignacion.objects.filter(espacio_aula=esp_aula)
         context["asignaciones"] = asignaciones
 
         # Obtener las comisiones relacionadas con las asignaciones

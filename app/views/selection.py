@@ -14,10 +14,10 @@ class select_aula(ListView):
 
         if txt_buscador:
             Aulas = Espacio_Aula.objects.filter(
-                Q(aula__nombre__icontains = txt_buscador)
+                Q(nombre_combinado__icontains = txt_buscador)
                 )
         else:
-            Aulas = Espacio_Aula.objects.all().order_by("aula")
+            Aulas = Espacio_Aula.objects.all().order_by("id")
 
         return Aulas
     
