@@ -71,7 +71,7 @@
             <select name="aula" id="aula">
             <option value="" disabled selected>Selecciona un aula</option>
             {% for aula in aulas_disponibles %}
-                <option value="{{ aula.id }}">{{ aula.nombre_combinado }}-Cantidad-{{aula.capacidad_total}}</option>
+                <option value="{{ aula.id }}">{{ aula.nombre_combinado }}-Cantidad-{{aula.capacidad_total_calculada}}</option>
             {% endfor %}
             </select>
             <button type="submit" id="asig-aula">Asignar Aula</button>

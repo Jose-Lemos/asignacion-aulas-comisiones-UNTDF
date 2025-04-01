@@ -142,24 +142,28 @@ class AsignarManualmenteAula(TemplateView):
         aulas = Espacio_Aula.objects.all()
 
         # Filtrar las asignaciones que están dentro del rango de horario
-        # asignaciones_en_rango = Asignacion.objects.filter(
-        #     comision_bh_id__dia=dia,
-        #     comision_bh_id__hora_ini__lt=hora_fin,
-        #     comision_bh_id__hora_fin__gt=hora_ini,
-        # )
+        asignaciones_en_rango = Asignacion.objects.filter(
+            comision_bh_id__dia=dia,
+            comision_bh_id__hora_ini__lt=hora_fin,
+            comision_bh_id__hora_fin__gt=hora_ini,
+         )
 
         # Excluir las aulas que están asignadas en ese rango de horario
-        # aulas_no_asignadas_rango = aulas.exclude(asignacion__in=asignaciones_en_rango)
+        aulas_no_asignadas_rango = aulas.exclude(asignacion__in=asignaciones_en_rango)
 
         #FIiltro por aulas con mayor capacidad
-        aulas_no_asignadas_rango = aulas.filter(
-            capacidad_total__gt = cant_insc -11
-        ).order_by("capacidad_total")
+        # Obtener todas las aulas
+        aulas_no_asignadas_rango = [
+            aula for aula in aulas
+            if aula.capacidad_total_calculada() > (cant_insc - 11)
+        ]
 
-        
+        # Ordenar por capacidad calculada
+        aulas_no_asignadas_rango.sort(key=lambda a: a.capacidad_total_calculada())
         # Aulas disponibles que no están asignadas en el rango de horario
         # Aulas con la capacidad suficiente
         print(aulas_no_asignadas_rango)
+    
         context["aulas_disponibles"] = aulas_no_asignadas_rango
 
         #print(context)
@@ -172,6 +176,8 @@ class AsignarManualmenteAula(TemplateView):
             context = super().get_context_data(**kwargs)
             print("comisionBH:"+comision_bh_id)
             print("esp_aula:"+espacio_aula_id)
+
+            
 
             if comision_bh_id and espacio_aula_id:
                 comision_bh = Comision_BH.objects.get(pk=comision_bh_id)

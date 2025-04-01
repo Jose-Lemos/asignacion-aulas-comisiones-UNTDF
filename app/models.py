@@ -45,7 +45,7 @@ class Espacio_Aula(models.Model):
     aulas = models.ManyToManyField(Aula, related_name="grupos_extensibles")
     capacidad_total = models.IntegerField(default=0)
 
-    def capacidad_total(self):
+    def capacidad_total_calculada(self):
         return sum(aula.capacidad for aula in self.aulas.all())
 
     def herramientas_totales(self):
