@@ -43,7 +43,6 @@ class Aula(models.Model):
 class Espacio_Aula(models.Model):
     nombre_combinado = models.CharField(max_length=100, unique=True)
     aulas = models.ManyToManyField(Aula, related_name="grupos_extensibles")
-    capacidad_total = models.IntegerField(default=0)
 
     def capacidad_total_calculada(self):
         return sum(aula.capacidad for aula in self.aulas.all())
@@ -137,18 +136,8 @@ class Comision_BH(models.Model): # Misma lógica de consumo que para la cant_ins
         ]
 
 class Asignacion(models.Model):
-    #pk = models.AutoField(primary_key=True)
-    aula = models.ForeignKey(Aula, on_delete=models.CASCADE, null=True, blank=True)
     espacio_aula = models.ForeignKey(Espacio_Aula, on_delete=models.CASCADE, null=True, blank=True)    
     comision_bh =  models.ForeignKey(Comision_BH, on_delete=models.CASCADE, null=True)
-    #real = models.BooleanField(default=False, null=True, blank=True)
-    # ToDo: agregar un timestamp --> puede ser currentDate() o cbh.fecha_ini
-
-    def clean(self):
-        if not self.aula and not self.espacio_aula:
-            raise ValidationError("Debes asignar un Aula o un EspacioAula, pero no ambos.")
-        if self.aula and self.espacio_aula:
-            raise ValidationError("No puedes asignar ambos a la vez.")
 
     def get_com(self):
         return self.comision_bh.id
